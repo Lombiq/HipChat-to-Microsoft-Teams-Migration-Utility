@@ -1,7 +1,8 @@
-﻿using System.IO;
-using System.IO.MemoryMappedFiles;
-using System.Text;
-using OpenSSL.Crypto;
+﻿using System;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
+using Lombiq.HipChatToTeams.Services;
+using Microsoft.Graph;
 
 namespace Lombiq.HipChatToTeams
 {
@@ -9,24 +10,31 @@ namespace Lombiq.HipChatToTeams
     {
         static void Main(string[] args)
         {
-            var hipChatExportFilePath = @"E:\hipchat-72182-2018-12-15_13-12-45.tar.gz.aes";
-            var hipChatExportFilePassword = "Lombiq Exodus";
-
-            using (var cipherContext = new CipherContext(Cipher.AES_256_CBC))
-            using (var exportFile = MemoryMappedFile.CreateFromFile(hipChatExportFilePath))
-            using (var fileStream = exportFile.CreateViewStream())
-            using (var memoryStream = new HugeMemoryStream())
+            var configuration = new Configuration
             {
-                fileStream.CopyTo(memoryStream);
+                ExportFolderPath = @"E:\export",
+                AuthorizationToken = "",
+                TeamNameToImportChannelsInto = "Import test"
+            };
 
-                var decryptedBytes = cipherContext
-                    .Decrypt(
-                        memoryStream.ToArray(),
-                        Encoding.ASCII.GetBytes(hipChatExportFilePassword),
-                        Encoding.ASCII.GetBytes(""));
 
-                File.WriteAllBytes(@"E:\export.tar.gz", decryptedBytes);
-            }
+            var graphServiceClient = new GraphServiceClient(new DelegateAuthenticationProvider((requestMessage) => {
+                requestMessage
+                    .Headers
+                    .Authorization = new AuthenticationHeaderValue("bearer", configuration.AuthorizationToken);
+
+                return Task.FromResult(0);
+            }));
+
+            var importContext = new ImportContext
+            {
+                Configuration = configuration,
+                GraphServiceClient = graphServiceClient
+            };
+
+            Console.WriteLine("Importing channels from rooms...");
+            ChannelsImporter.ImportChannelsFromRooms(importContext);
+            Console.WriteLine("Channels imported.");
         }
     }
 }
