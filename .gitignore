@@ -1,0 +1,10 @@
+desktop.ini
+[Bb]in/
+[Oo]bj/
+*.suo
+*.sln.cache
+*.orig
+*.user
+*Thumbs.db
+.vs/
+packages/
