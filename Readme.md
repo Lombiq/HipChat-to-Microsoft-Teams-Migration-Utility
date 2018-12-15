@@ -6,8 +6,6 @@ Utility to migrate Atlassian HipChat content to Microsoft Teams.
 
 Note that this being a utility with just temporary use simplicity of implementation was favored against long-term maintainability. Note that the guide assumes you're using Windows but everything should work equally well under any OS supported by .NET Core.
 
-Some inspiration is taken from https://github.com/microsoftgraph/csharp-teams-sample-graph.
-
 
 ## Usage
 
@@ -16,6 +14,12 @@ Some inspiration is taken from https://github.com/microsoftgraph/csharp-teams-sa
 3. Use your favorite ZIP utility to extract the gz and tar so finally you'll end up with an unencrypted, unzipped export folder (this will contain folders like *rooms* and *users* and some further files like *rooms.json* and *users.json*). While this decrypt-unzip could be automated it's a yak shaving of epic proportions (but feel free to contribute it if you wish!) but you'll have to do it once any way.
 4. Go to the [Graph Explorer](https://developer.microsoft.com/en-us/graph/graph-explorer) and log in. Try to run e.g. the Microsoft Teams / create channel operation, you'll get an error telling you that you have insufficient permissions. Select the following ones: Group.ReadWrite.All, User.Read.All.
 5. Copy the bearer token (just the token, without the "Bearer" text) used by the request into the configuration. You can e.g. use Chrome DevTools to see this token in the Request headers.
+
+
+## Some implementation notes
+
+- [Here's](https://confluence.atlassian.com/hipchatkb/exporting-from-hipchat-server-or-data-center-for-data-portability-950821555.html) some information on the HipChat export's schema.
+- Some inspiration is taken from https://github.com/microsoftgraph/csharp-teams-sample-graph.
 
 
 ## Contribution and Feedback

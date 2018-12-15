@@ -35,7 +35,7 @@ namespace Lombiq.HipChatToTeams
 
                 Console.WriteLine("======================");
                 Console.WriteLine("Importing channels from rooms...");
-                await ChannelsImporter.ImportChannelsFromRoomsAsync(importContext);
+                var channels = await ChannelsImporter.ImportChannelsFromRoomsAsync(importContext);
                 Console.WriteLine("Channels imported.");
                 Console.WriteLine("======================");
             }).Wait();

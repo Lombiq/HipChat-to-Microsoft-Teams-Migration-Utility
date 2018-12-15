@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -9,7 +10,7 @@ namespace Lombiq.HipChatToTeams.Services
 {
     internal static class ChannelsImporter
     {
-        public static async Task ImportChannelsFromRoomsAsync(ImportContext importContext)
+        public static async Task<Dictionary<string, Channel>> ImportChannelsFromRoomsAsync(ImportContext importContext)
         {
             var configuration = importContext.Configuration;
             var graphApi = importContext.GraphApi;
@@ -32,6 +33,8 @@ namespace Lombiq.HipChatToTeams.Services
             };
             var unsupportedChannelNameCharactersString = string.Join(", ", unsupportedChannelNameCharacters);
 
+            var channels = new Dictionary<string, Channel>();
+
             foreach (var room in rooms)
             {
                 try
@@ -46,7 +49,7 @@ namespace Lombiq.HipChatToTeams.Services
                             $"({unsupportedChannelNameCharactersString})). Offending characters were removed: \"{roomName}\".");
                     }
 
-                    await graphApi.CreateChannel(
+                    channels[roomName] = await graphApi.CreateChannel(
                         teamToImportInto.Id,
                         new Channel
                         {
@@ -59,6 +62,8 @@ namespace Lombiq.HipChatToTeams.Services
                     throw new Exception($"Importing the room \"{room.Name}\" with the description \"{room.Topic}\" failed.", ex);
                 }
             }
+
+            return channels;
         }
     }
 }
