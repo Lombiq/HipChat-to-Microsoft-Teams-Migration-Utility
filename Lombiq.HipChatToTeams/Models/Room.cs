@@ -7,7 +7,7 @@ namespace Lombiq.HipChatToTeams.Models
 {
     internal class Room
     {
-        [JsonProperty(PropertyName = "created")]
+        [JsonProperty("created")]
         public DateTime CreatedLocal { get; set; }
         public int Id { get; set; }
         public bool IsArchived { get; set; }

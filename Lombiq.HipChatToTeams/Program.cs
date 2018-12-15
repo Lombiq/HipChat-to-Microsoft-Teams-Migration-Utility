@@ -2,7 +2,7 @@
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Lombiq.HipChatToTeams.Services;
-using Microsoft.Graph;
+using RestEase;
 
 namespace Lombiq.HipChatToTeams
 {
@@ -10,31 +10,37 @@ namespace Lombiq.HipChatToTeams
     {
         static void Main(string[] args)
         {
-            var configuration = new Configuration
+            Task.Run(async () =>
             {
-                ExportFolderPath = @"E:\export",
-                AuthorizationToken = "",
-                TeamNameToImportChannelsInto = "Import test"
-            };
+                var configuration = new Configuration
+                {
+                    ExportFolderPath = @"E:\export",
+                    // If channels could be moved (https://microsoftteams.uservoice.com/forums/555103-public/suggestions/16939708-move-channels-into-other-teams)
+                    // this would be enough.
+                    TeamNameToImportChannelsInto = "Import test",
+                    AuthorizationToken = ""
+                };
 
 
-            var graphServiceClient = new GraphServiceClient(new DelegateAuthenticationProvider((requestMessage) => {
-                requestMessage
-                    .Headers
-                    .Authorization = new AuthenticationHeaderValue("bearer", configuration.AuthorizationToken);
+                var importContext = new ImportContext
+                {
+                    Configuration = configuration,
+                    GraphApi = RestClient.For<ITeamsGraphApi>(
+                        "https://graph.microsoft.com",
+                        async (request, cancellationToken) =>
+                        {
+                            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configuration.AuthorizationToken);
+                        })
+                };
 
-                return Task.FromResult(0);
-            }));
+                Console.WriteLine("======================");
+                Console.WriteLine("Importing channels from rooms...");
+                await ChannelsImporter.ImportChannelsFromRoomsAsync(importContext);
+                Console.WriteLine("Channels imported.");
+                Console.WriteLine("======================");
+            }).Wait();
 
-            var importContext = new ImportContext
-            {
-                Configuration = configuration,
-                GraphServiceClient = graphServiceClient
-            };
-
-            Console.WriteLine("Importing channels from rooms...");
-            ChannelsImporter.ImportChannelsFromRooms(importContext);
-            Console.WriteLine("Channels imported.");
+            Console.ReadKey();
         }
     }
 }
