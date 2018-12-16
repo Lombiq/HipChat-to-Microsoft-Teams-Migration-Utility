@@ -14,6 +14,9 @@ namespace Lombiq.HipChatToTeams.Services
     {
         private static readonly string CursorPath = "ImportCursor.json";
 
+        private const int DefaultThrottlingCooldownSeconds = 30;
+        private static int _throttlingCooldownSeconds = DefaultThrottlingCooldownSeconds;
+
 
         public static async Task ImportChannelsFromRoomsAsync(ImportContext importContext)
         {
@@ -175,6 +178,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                         cursor.SkipMessages++;
                         await UpdateCursor(cursor);
+                        _throttlingCooldownSeconds = DefaultThrottlingCooldownSeconds;
 
                         if (cursor.SkipMessages % 50 == 0)
                         {
@@ -192,8 +196,15 @@ namespace Lombiq.HipChatToTeams.Services
                 }
                 catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 {
-                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {configuration.ThrottlingCooldownSeconds} seconds, then retrying. If this happens again and again then try opening the Graph Explorer in a browser and logging in again, and getting a new authorization token. If that doesn't help then close the app, configure a longer cooldown time, then restart (or wait some time before that).");
-                    await Task.Delay(configuration.ThrottlingCooldownSeconds * 1000);
+                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {_throttlingCooldownSeconds} seconds, then retrying. If this happens again and again then try opening the Graph Explorer in a browser and logging in again, and getting a new authorization token. If that doesn't help then close the app, configure a longer cooldown time, then restart (or wait some time before that).");
+
+                    // While some APIs return a Retry-After header to indicate when you should retry a throttled
+                    // request (see: https://docs.microsoft.com/en-us/graph/throttling) the Teams endpoints don't.
+                    // Also, all endpoints seem to have their own limits, because after the message creation is
+                    // throttled e.g. the user APIs still work. So we need to use such hacks.
+                    await Task.Delay(_throttlingCooldownSeconds * 1000);
+                    _throttlingCooldownSeconds *= 2;
+
                     await ImportChannelsFromRoomsAsync(importContext);
                 }
                 catch (Exception ex)
