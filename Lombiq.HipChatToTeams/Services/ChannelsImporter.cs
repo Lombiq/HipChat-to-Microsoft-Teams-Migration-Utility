@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -99,102 +98,92 @@ namespace Lombiq.HipChatToTeams.Services
                         .Where(message => !(message is ArchiveRoomMessage))
                         .Skip(cursor.SkipMessages);
 
-                    // This is the maximum currently: https://docs.microsoft.com/en-us/graph/known-issues#json-batching.
-                    var batchSize = 20;
-                    var currentSkip = 0;
-                    IEnumerable<Message> messageBatch;
-
-                    while ((messageBatch = messages.Skip(currentSkip).Take(batchSize)).Any())
+                    foreach (var message in messages)
                     {
-                        var chatThreadBatch = new List<ChatThread>(batchSize);
-
-                        foreach (var message in messageBatch)
+                        var chatMessage = new ChatMessage
                         {
-                            var chatMessage = new ChatMessage
+                            Body = new ItemBody
                             {
-                                Body = new ItemBody
+                                Content = message.Body,
+                                ContentType = "1"
+                            },
+                            CreatedDateTime = message.Timestamp
+                        };
+
+                        if (message is UserMessage userMessage)
+                        {
+                            // Users are not fetched yet and this doesn't work, so using a hack to show
+                            // the user's name in the message body for now.
+                            chatMessage.From = new IdentitySet
+                            {
+                                User = new User
                                 {
-                                    Content = message.Body,
-                                    ContentType = "1"
-                                },
-                                CreatedDateTime = message.Timestamp
+                                    DisplayName = userMessage.Sender.Name
+                                }
                             };
 
-                            if (message is UserMessage userMessage)
+                            chatMessage.Body.Content = $"{userMessage.Sender.Name}:<br>{chatMessage.Body.Content}";
+
+                            if (userMessage.Attachment != null)
                             {
-                                // Users are not fetched yet and this doesn't work, so using a hack to show
-                                // the user's name in the message body for now.
-                                chatMessage.From = new IdentitySet
+                                var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
+                                var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
+
+                                // The content type is not yet used because attaching files doesn't take effect any
+                                // way, and posting bigger files won't work either.
+                                var contentType = MimeTypeMap.List.MimeTypeMap
+                                    .GetMimeType(Path.GetExtension(attachmentPath))
+                                    .FirstOrDefault();
+
+                                if (contentType == null ||
+                                        (!contentType.StartsWith("image/") &&
+                                        !contentType.StartsWith("video/") &&
+                                        !contentType.StartsWith("audio/") &&
+                                        !contentType.StartsWith("application/vnd.microsoft.card.")))
                                 {
-                                    User = new User
-                                    {
-                                        DisplayName = userMessage.Sender.Name
-                                    }
-                                };
+                                    contentType = "file";
+                                }
 
-                                chatMessage.Body.Content = $"{userMessage.Sender.Name}:<br>{chatMessage.Body.Content}";
-
-                                if (userMessage.Attachment != null)
+                                chatMessage.Attachments = new[]
                                 {
-                                    var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
-                                    var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
-
-                                    // The content type is not yet used because attaching files doesn't take effect any
-                                    // way, and posting bigger files won't work either.
-                                    var contentType = MimeTypeMap.List.MimeTypeMap
-                                        .GetMimeType(Path.GetExtension(attachmentPath))
-                                        .FirstOrDefault();
-
-                                    if (contentType == null ||
-                                            (!contentType.StartsWith("image/") &&
-                                            !contentType.StartsWith("video/") &&
-                                            !contentType.StartsWith("audio/") &&
-                                            !contentType.StartsWith("application/vnd.microsoft.card.")))
-                                    {
-                                        contentType = "file";
-                                    }
-
-                                    chatMessage.Attachments = new[]
-                                    {
                                     new ChatMessageAttachment
                                     {
                                         ContentUrl = userMessage.Attachment.Url,
                                         ContentType = "reference"
                                     }
                                 };
-                                }
                             }
-                            else
-                            {
-                                // This doesn't work.
-                                //chatMessage.From = new From
-                                //{
-                                //    Guest = new User
-                                //    {
-                                //        DisplayName = ((NotificationMessage)message).Sender
-                                //    }
-                                //};
+                        }
+                        else
+                        {
+                            // This doesn't work.
+                            //chatMessage.From = new From
+                            //{
+                            //    Guest = new User
+                            //    {
+                            //        DisplayName = ((NotificationMessage)message).Sender
+                            //    }
+                            //};
 
-                                chatMessage.Body.Content = $"{((NotificationMessage)message).Sender}:<br>{chatMessage.Body.Content}";
-                            }
+                            chatMessage.Body.Content = $"{((NotificationMessage)message).Sender}:<br>{chatMessage.Body.Content}";
+                        }
 
-                            chatThreadBatch.Add(new ChatThread
+                        await graphApi.CreateThread(
+                            teamToImportInto.Id,
+                            channel.Id,
+                            new ChatThread
                             {
                                 RootMessage = chatMessage
                             });
-                        }
 
-                        // Here we could also check the response for any errors. Also, not all threads are necessarily
-                        // created when this returns, so would need to check and poll for that too: 
-                        // https://docs.microsoft.com/en-us/graph/json-batching
-                        await graphApi.BatchCreateThreads(teamToImportInto.Id, channel.Id, chatThreadBatch);
-
-                        cursor.SkipMessages += batchSize;
+                        cursor.SkipMessages++;
                         await UpdateCursor(cursor);
                         _throttlingCooldownSeconds = DefaultThrottlingCooldownSeconds;
-                        currentSkip += batchSize;
 
-                        TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel.");
+                        if (cursor.SkipMessages % 50 == 0)
+                        {
+                            TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel.");
+                        }
                     }
 
                     cursor.SkipRooms++;
