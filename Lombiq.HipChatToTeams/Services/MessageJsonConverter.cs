@@ -38,6 +38,12 @@ namespace Lombiq.HipChatToTeams.Services
             {
                 return message.ToObject<TopicRoomMessage>();
             }
+            else if (messageType == "GuestAccessMessage")
+            {
+                // GuestAccessMessage is sometimes a UserMessage, sometimes a NotificationMessage, so since it's not
+                // useful any way, just leaving it out.
+                return null;
+            }
             else
             {
                 throw new NotSupportedException($"The HipChat message type \"{messageType}\" is not supported.");

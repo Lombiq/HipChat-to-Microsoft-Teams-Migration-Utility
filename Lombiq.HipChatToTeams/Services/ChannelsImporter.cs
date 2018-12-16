@@ -40,8 +40,10 @@ namespace Lombiq.HipChatToTeams.Services
                 try
                 {
                     var roomName = room.Name;
-                    roomName += new Random().Next();
-                    room.Id = 411001;
+
+                    // This can be used to test a single room again and again, without having to delete anything.
+                    //roomName += new Random().Next();
+                    //room.Id = 411001;
 
                     Console.WriteLine("======================");
 
@@ -78,37 +80,65 @@ namespace Lombiq.HipChatToTeams.Services
                             Body = new ItemBody
                             {
                                 Content = message.Body,
-                                ContentType = (message is NotificationMessage) ? "1" : "0"
+                                ContentType = "1"
                             },
                             CreatedDateTime = message.Timestamp
                         };
 
-                        if (message is UserMessage userMessage && userMessage.Attachment != null)
+                        if (message is UserMessage userMessage)
                         {
-                            var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
-                            var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
-                            
-                            var contentType = MimeTypeMap.List.MimeTypeMap
-                                .GetMimeType(Path.GetExtension(attachmentPath))
-                                .FirstOrDefault();
-
-                            if (contentType == null || 
-                                    (!contentType.StartsWith("image/") && 
-                                    !contentType.StartsWith("video/") && 
-                                    !contentType.StartsWith("audio/") && 
-                                    !contentType.StartsWith("application/vnd.microsoft.card.")))
+                            // Users are not fetched yet and this doesn't work, so using a hack to show
+                            // the user's name in the message body for now.
+                            chatMessage.From = new From
                             {
-                                contentType = "file";
-                            }
-
-                            chatMessage.Attachments = new[]
-                            {
-                                new ChatMessageAttachment
+                                User = new User
                                 {
-                                    ContentUrl = $"data:{contentType};base64," + Convert.ToBase64String(await File.ReadAllBytesAsync(attachmentPath)),
-                                    ContentType = contentType
+                                    DisplayName = userMessage.Sender.Name
                                 }
                             };
+
+                            chatMessage.Body.Content = $"{userMessage.Sender.Name}:<br>{chatMessage.Body.Content}";
+
+                            if (userMessage.Attachment != null)
+                            {
+                                var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
+                                var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
+
+                                var contentType = MimeTypeMap.List.MimeTypeMap
+                                    .GetMimeType(Path.GetExtension(attachmentPath))
+                                    .FirstOrDefault();
+
+                                if (contentType == null ||
+                                        (!contentType.StartsWith("image/") &&
+                                        !contentType.StartsWith("video/") &&
+                                        !contentType.StartsWith("audio/") &&
+                                        !contentType.StartsWith("application/vnd.microsoft.card.")))
+                                {
+                                    contentType = "file";
+                                }
+
+                                chatMessage.Attachments = new[]
+                                {
+                                new ChatMessageAttachment
+                                {
+                                    ContentUrl = userMessage.Attachment.Url,
+                                    ContentType = "reference"
+                                }
+                            }; 
+                            }
+                        }
+                        else
+                        {
+                            // This doesn't work.
+                            //chatMessage.From = new From
+                            //{
+                            //    Guest = new User
+                            //    {
+                            //        DisplayName = ((NotificationMessage)message).Sender
+                            //    }
+                            //};
+
+                            chatMessage.Body.Content = $"{((NotificationMessage)message).Sender}:<br>{chatMessage.Body.Content}";
                         }
 
                         await graphApi.CreateThread(

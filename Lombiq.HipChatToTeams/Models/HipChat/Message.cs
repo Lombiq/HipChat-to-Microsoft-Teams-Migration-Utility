@@ -21,16 +21,18 @@ namespace Lombiq.HipChatToTeams.Models.HipChat
     }
 
 
-    public class NotificationMessage : Message
-    {
-        public string Sender { get; set; }
-    }
-
     public class ArchiveRoomMessage : UserMessage
     {
     }
 
+
     public class TopicRoomMessage : UserMessage
     {
+    }
+
+
+    public class NotificationMessage : Message
+    {
+        public string Sender { get; set; }
     }
 }

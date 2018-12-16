@@ -18,11 +18,17 @@ Note that this being a utility with just temporary use simplicity of implementat
 
 ## Notable features missing and bugs
 
+Features:
 - Ability to create channels under multiple teams.
 - Pushing messages from a HipChat room to an existing channel (mostly needed for the General channel).
 - Handling users corresponding to messages (needs to handle the case when a corresponding Office user exists and when not).
-- Message timestamps don't take effect for some reason.
-- Mentions are not handled.
+- Mentions
+
+Bugs:
+- Message timestamps don't take effect.
+- Attachments don't get attached.
+
+Also see: https://techcommunity.microsoft.com/t5/Microsoft-Teams/Chat-thread-creation-API-issues/m-p/302388#M22558.
 
 
 ## Some implementation notes

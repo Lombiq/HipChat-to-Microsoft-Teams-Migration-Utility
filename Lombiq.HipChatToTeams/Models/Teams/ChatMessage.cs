@@ -1,15 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Lombiq.HipChatToTeams.Services;
 using Newtonsoft.Json;
 
 namespace Lombiq.HipChatToTeams.Models.Teams
 {
     public class ChatMessage : GraphEntityBase
     {
-        // from
+        [JsonProperty("from")]
+        public From From { get; set; }
 
         [JsonProperty("createdDateTime")]
+        [JsonConverter(typeof(GraphApiDateTimeConverter))]
         public DateTime CreatedDateTime { get; set; }
 
         [JsonProperty("body")]

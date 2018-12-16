@@ -8,6 +8,7 @@ using RestEase;
 
 namespace Lombiq.HipChatToTeams
 {
+    [Header("User-Agent", "RestEase")]
     public interface ITeamsGraphApi
     {
         [Get("v1.0/me/joinedTeams")]
