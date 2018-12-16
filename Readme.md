@@ -2,12 +2,14 @@
 
 
 
-Utility to migrate Atlassian HipChat content to Microsoft Teams.
+Utility to migrate Atlassian HipChat content to Microsoft Teams. You can use this instead of waiting for [official support](https://microsoftteams.uservoice.com/forums/555103-public/suggestions/16933120-importing-from-slack-hipchat-flowdock-basecamp). We're testing this utility at [Lombiq Technologies](https://lombiq.com) (a web development company working with Microsoft technologies) with a 4GB+ HipChat export package containing more than 200k messages.
 
 Note that this being a utility with just temporary use simplicity of implementation was favored against long-term maintainability. Note that the guide assumes you're using Windows but everything should work equally well under any OS supported by .NET Core.
 
 
 ## Usage
+
+Keep in mind that you need to be both a HipChat and a Teams admin in your company for this to work.
 
 1. As a HipChat admin export your HipChat data from under you HipChat URL (e.g https://lombiq.hipchat.com), Group admin, Data export. Select to export every kind of data and the whole history. Use a password without any special characters or spaces. Save the file under a path without any special characters.
 2. Download the OpenSSL binaries if your system doesn't have them already. Recommended is the 1.0.2a (not any other version!) x64 zip from [here](https://bintray.com/vszakats/generic/openssl/1.0.2a) ([direct link to file](https://bintray.com/vszakats/generic/download_file?file_path=openssl-1.0.2a-win64-mingw.zip)). Unzip it, run *openssl.exe* and decrypt the export file with the following command: `aes-256-cbc -d -in C:\path\to\export\file.tar.gz.aes -out C:\export.tar.gz -pass pass:password`.
