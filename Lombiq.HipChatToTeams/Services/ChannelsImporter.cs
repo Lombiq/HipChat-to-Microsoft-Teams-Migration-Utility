@@ -190,9 +190,8 @@ namespace Lombiq.HipChatToTeams.Services
                 }
                 catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 {
-                    var waitSeconds = 30;
-                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {waitSeconds} seconds, then retrying.");
-                    await Task.Delay(waitSeconds * 1000);
+                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {configuration.ThrottlingCooldownSeconds} seconds, then retrying.");
+                    await Task.Delay(configuration.ThrottlingCooldownSeconds * 1000);
                     await ImportChannelsFromRoomsAsync(importContext);
                 }
                 catch (Exception ex)
