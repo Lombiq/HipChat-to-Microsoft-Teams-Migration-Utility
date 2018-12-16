@@ -6,6 +6,7 @@ using Lombiq.HipChatToTeams.Models;
 using Lombiq.HipChatToTeams.Models.HipChat;
 using Lombiq.HipChatToTeams.Models.Teams;
 using Newtonsoft.Json;
+using RestEase;
 
 namespace Lombiq.HipChatToTeams.Services
 {
@@ -79,9 +80,13 @@ namespace Lombiq.HipChatToTeams.Services
                                 DisplayName = channelName,
                                 Description = room.Topic
                             });
-                    }
 
-                    TimestampedConsole.WriteLine($"Created the \"{channel.DisplayName}\" channel. Starting importing messages.");
+                        TimestampedConsole.WriteLine($"Created the \"{channelName}\" channel. Starting importing messages.");
+                    }
+                    else
+                    {
+                        TimestampedConsole.WriteLine($"Starting importing messages into the existing \"{channelName}\" channel.");
+                    }
 
                     var roomFolderPath = Path.Combine(configuration.ExportFolderPath, "rooms", room.Id.ToString());
                     var historyFilePath = Path.Combine(roomFolderPath, "history.json");
@@ -168,6 +173,11 @@ namespace Lombiq.HipChatToTeams.Services
 
                         cursor.SkipMessages++;
                         await UpdateCursor(cursor);
+
+                        if (cursor.SkipMessages % 50 == 0)
+                        {
+                            TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel.");
+                        }
                     }
 
                     cursor.SkipRooms++;
@@ -177,6 +187,13 @@ namespace Lombiq.HipChatToTeams.Services
                     TimestampedConsole.WriteLine($"Messages imported into the \"{channel.DisplayName}\" channel.");
 
                     Console.WriteLine("======================");
+                }
+                catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                {
+                    var waitSeconds = 30;
+                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {waitSeconds} seconds, then retrying.");
+                    await Task.Delay(waitSeconds * 1000);
+                    await ImportChannelsFromRoomsAsync(importContext);
                 }
                 catch (Exception ex)
                 {
