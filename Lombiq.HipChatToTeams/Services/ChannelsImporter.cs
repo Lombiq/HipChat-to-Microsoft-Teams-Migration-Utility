@@ -52,7 +52,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                     // This can be used to test a single room again and again, without having to delete anything.
                     //channelName += new Random().Next();
-                    room.Id = 411001;
+                    //room.Id = 411001;
 
                     Console.WriteLine("======================");
 

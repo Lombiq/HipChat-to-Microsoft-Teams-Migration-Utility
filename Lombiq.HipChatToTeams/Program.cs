@@ -18,6 +18,11 @@ namespace Lombiq.HipChatToTeams
                 {
                     var configuration = JsonConvert.DeserializeObject<Configuration>(await File.ReadAllTextAsync("AppSettings.json"));
 
+                    if (string.IsNullOrEmpty(configuration.AuthorizationToken))
+                    {
+                        throw new Exception("You need to supply an authorization token in the AppSettings.json file, see the documentation.");
+                    }
+
                     var importContext = new ImportContext
                     {
                         // Easier to have full control over the deserialization of AppSettings.json than have it the
@@ -36,9 +41,13 @@ namespace Lombiq.HipChatToTeams
                     await ChannelsImporter.ImportChannelsFromRoomsAsync(importContext);
                     TimestampedConsole.WriteLine("Channels imported.");
                 }
+                catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+                {
+                    TimestampedConsole.WriteLine("Authorizing with the Graph API failed. The authorization token configured may be expired or doesn't have all the required permissions.");
+                }
                 catch (Exception ex)
                 {
-                    TimestampedConsole.WriteLine("The import failed with the following error: " + ex.ToString());
+                    TimestampedConsole.WriteLine("The import failed with the following error: " + Environment.NewLine + ex.ToString());
                 }
             }).Wait();
 
