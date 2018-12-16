@@ -33,7 +33,6 @@ Features:
 - Ability to create channels under multiple teams.
 - Pushing messages from a HipChat room to an existing channel (mostly needed for the General channel).
 - Mentions
-- [Request batching](https://docs.microsoft.com/en-us/graph/json-batching) to avoid API throttling slowing down the import.
 - Possibly a better way to log in for the API instead of fishing out the authorization token.
 
 Bugs:

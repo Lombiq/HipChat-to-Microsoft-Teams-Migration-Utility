@@ -1,9 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Lombiq.HipChatToTeams.Models;
 using Lombiq.HipChatToTeams.Models.Teams;
+using Newtonsoft.Json;
 using RestEase;
 
 namespace Lombiq.HipChatToTeams
@@ -22,5 +24,33 @@ namespace Lombiq.HipChatToTeams
 
         [Post("beta/teams/{teamId}/channels/{channelId}/chatThreads")]
         Task <ChatThread> CreateThread([Path] string teamId, [Path] string channelId, [Body] ChatThread thread);
+
+        [Post("v1.0/$batch")]
+        Task Batch([Body] BatchRequest batchRequest);
+    }
+
+
+    public static class TeamsGraphApiExtensions
+    {
+        public static Task BatchCreateThreads(this ITeamsGraphApi graphApi, string teamId, string channelId, IEnumerable<ChatThread> threads)
+        {
+            var url = $"beta/teams/{teamId}/channels/{channelId}/chatThreads";
+            var headers = new Dictionary<string, string> { ["Content-Type"] = "application/json" };
+
+            var request = new BatchRequest
+            {
+                Requests = threads
+                    .Select((thread, index) => new Request
+                    {
+                        Id = index.ToString(),
+                        Method = "POST",
+                        Url = url,
+                        Body = thread,
+                        Headers = headers
+                    })
+            };
+
+            return graphApi.Batch(request);
+        }
     }
 }
