@@ -12,7 +12,7 @@ namespace Lombiq.HipChatToTeams.Services
 {
     internal static class ChannelsImporter
     {
-        private static readonly string CursorPath = "ImportCursor.json";
+        private const string CursorPath = "ImportCursor.json";
 
         private const int DefaultThrottlingCooldownSeconds = 30;
         private static int _throttlingCooldownSeconds = DefaultThrottlingCooldownSeconds;
