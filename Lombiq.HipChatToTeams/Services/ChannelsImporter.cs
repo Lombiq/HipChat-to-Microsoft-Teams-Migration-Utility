@@ -126,6 +126,8 @@ namespace Lombiq.HipChatToTeams.Services
                                 var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
                                 var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
 
+                                // The content type is not yet used because attaching files doesn't take effect any
+                                // way, and posting bigger files won't work either.
                                 var contentType = MimeTypeMap.List.MimeTypeMap
                                     .GetMimeType(Path.GetExtension(attachmentPath))
                                     .FirstOrDefault();
