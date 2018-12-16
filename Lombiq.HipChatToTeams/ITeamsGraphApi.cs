@@ -14,6 +14,9 @@ namespace Lombiq.HipChatToTeams
         [Get("v1.0/me/joinedTeams")]
         Task<GraphApiResult<Team>> GetMyTeamsAsync();
 
+        [Get("v1.0/teams/{teamId}/channels")]
+        Task<GraphApiResult<Channel>> GetChannels([Path] string teamId);
+
         [Post("v1.0/teams/{teamId}/channels")]
         Task<Channel> CreateChannel([Path] string teamId, [Body] Channel channel);
 
