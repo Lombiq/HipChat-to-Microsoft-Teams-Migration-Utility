@@ -9,7 +9,7 @@ namespace Lombiq.HipChatToTeams.Models.Teams
     public class ChatMessage : GraphEntityBase
     {
         [JsonProperty("from")]
-        public From From { get; set; }
+        public IdentitySet From { get; set; }
 
         [JsonProperty("createdDateTime")]
         [JsonConverter(typeof(GraphApiDateTimeConverter))]

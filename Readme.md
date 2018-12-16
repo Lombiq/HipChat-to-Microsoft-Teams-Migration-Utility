@@ -26,12 +26,12 @@ Keep in mind that you need to be both a HipChat and a Teams admin in your compan
 Features:
 - Ability to create channels under multiple teams.
 - Pushing messages from a HipChat room to an existing channel (mostly needed for the General channel).
-- Handling users corresponding to messages (needs to handle the case when a corresponding Office user exists and when not).
 - Mentions
 
 Bugs:
 - Message timestamps don't take effect.
 - Attachments don't get attached.
+- Messages are not posted in the name of the original user (while this is not implemented during initial testing we couldn't find a way to do this).
 
 Also see: https://techcommunity.microsoft.com/t5/Microsoft-Teams/Chat-thread-creation-API-issues/m-p/302388#M22558.
 

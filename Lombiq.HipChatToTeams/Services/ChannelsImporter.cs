@@ -89,7 +89,7 @@ namespace Lombiq.HipChatToTeams.Services
                         {
                             // Users are not fetched yet and this doesn't work, so using a hack to show
                             // the user's name in the message body for now.
-                            chatMessage.From = new From
+                            chatMessage.From = new IdentitySet
                             {
                                 User = new User
                                 {

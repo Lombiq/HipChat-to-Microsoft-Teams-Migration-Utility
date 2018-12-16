@@ -5,7 +5,7 @@ using Newtonsoft.Json;
 
 namespace Lombiq.HipChatToTeams.Models.Teams
 {
-    public class From
+    public class IdentitySet
     {
         [JsonProperty("user")]
         public User User { get; set; }
