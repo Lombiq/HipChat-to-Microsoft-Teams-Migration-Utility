@@ -190,7 +190,7 @@ namespace Lombiq.HipChatToTeams.Services
                 }
                 catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 {
-                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {configuration.ThrottlingCooldownSeconds} seconds, then retrying.");
+                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {configuration.ThrottlingCooldownSeconds} seconds, then retrying. If this happens again and again then try opening the Graph Explorer in a browser and logging in again, and getting a new authorization token. If that doesn't help then close the app, configure a longer cooldown time, then restart (or wait some time before that).");
                     await Task.Delay(configuration.ThrottlingCooldownSeconds * 1000);
                     await ImportChannelsFromRoomsAsync(importContext);
                 }

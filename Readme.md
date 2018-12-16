@@ -14,7 +14,11 @@ Keep in mind that you need to be both a HipChat and a Teams admin in your compan
 1. As a HipChat admin export your HipChat data from under you HipChat URL (e.g https://lombiq.hipchat.com), Group admin, Data export. Select to export every kind of data and the whole history. Use a password without any special characters or spaces. Save the file under a path without any special characters.
 2. Download the OpenSSL binaries if your system doesn't have them already. Recommended is the 1.0.2a (not any other version!) x64 zip from [here](https://bintray.com/vszakats/generic/openssl/1.0.2a) ([direct link to file](https://bintray.com/vszakats/generic/download_file?file_path=openssl-1.0.2a-win64-mingw.zip)). Unzip it, run *openssl.exe* and decrypt the export file with the following command: `aes-256-cbc -d -in C:\path\to\export\file.tar.gz.aes -out C:\export.tar.gz -pass pass:password`.
 3. Use your favorite ZIP utility to extract the gz and tar so finally you'll end up with an unencrypted, unzipped export folder (this will contain folders like *rooms* and *users* and some further files like *rooms.json* and *users.json*). While this decrypt-unzip could be automated it's a yak shaving of epic proportions (but feel free to contribute it if you wish!) but you'll have to do it once any way.
-4. Go to the [Graph Explorer](https://developer.microsoft.com/en-us/graph/graph-explorer) and log in. Try to run e.g. the Microsoft Teams / create channel operation, you'll get an error telling you that you have insufficient permissions. Select the following ones: Group.ReadWrite.All, User.Read.All.
+4. Go to the [Graph Explorer](https://developer.microsoft.com/en-us/graph/graph-explorer) and log in, confirm the required permissions. Then do the following:
+    1. Click on "show more samples", turn "Microsoft Teams" and "Microsoft Teams (beta)" on.
+    2. Try to run e.g. the Microsoft Teams / create channel operation. You'll get an error that you don't have the necessary permissions. Click on "modify your permission".
+    ![alt text](Screenshots/InsufficentPermissions.png)
+    3. Select the following permissions: Group.ReadWrite.All, User.Read.All. You'll need to log in again.
 5. Once the permissions are OK then run the request. Copy the bearer token (just the token, without the "Bearer" text) used by the request into the *AppSettings.json* configuration file under the `AuthorizationToken` config. You can e.g. use Chrome DevTools to see this token in the Request headers. Specify the rest of the configuration as well:
     - `ExportFolderPath`: The file system path to the folder where you unzipped the HipChat export package.
     - `TeamNameToImportChannelsInto`: Name of the Teams team where you want all the channels to be imported into. Currently all channels are imported into a single team. This wouldn't be an issue if channels could be moved (https://microsoftteams.uservoice.com/forums/555103-public/suggestions/16939708-move-channels-into-other-teams).
@@ -29,6 +33,7 @@ Features:
 - Pushing messages from a HipChat room to an existing channel (mostly needed for the General channel).
 - Mentions
 - [Request batching](https://docs.microsoft.com/en-us/graph/json-batching) to avoid API throttling slowing down the import.
+- Possibly a better way to log in for the API instead of fishing out the authorization token.
 
 Bugs:
 - Message timestamps don't take effect.
