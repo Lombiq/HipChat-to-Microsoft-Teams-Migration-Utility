@@ -27,17 +27,16 @@ namespace Lombiq.HipChatToTeams
                     Configuration = configuration,
                     GraphApi = RestClient.For<ITeamsGraphApi>(
                         "https://graph.microsoft.com",
-                        async (request, cancellationToken) =>
+                        (request, cancellationToken) =>
                         {
                             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configuration.AuthorizationToken);
+                            return Task.CompletedTask;
                         })
                 };
 
-                Console.WriteLine("======================");
-                Console.WriteLine("Importing channels from rooms...");
-                var channels = await ChannelsImporter.ImportChannelsFromRoomsAsync(importContext);
-                Console.WriteLine("Channels imported.");
-                Console.WriteLine("======================");
+                TimestampedConsole.WriteLine("Importing channels from rooms...");
+                await ChannelsImporter.ImportChannelsFromRoomsAsync(importContext);
+                TimestampedConsole.WriteLine("Channels imported.");
             }).Wait();
 
             Console.ReadKey();

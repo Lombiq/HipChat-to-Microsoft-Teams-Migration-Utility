@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Lombiq.HipChatToTeams.Models
+namespace Lombiq.HipChatToTeams.Models.Teams
 {
     public class Team : GraphEntityBase
     {
