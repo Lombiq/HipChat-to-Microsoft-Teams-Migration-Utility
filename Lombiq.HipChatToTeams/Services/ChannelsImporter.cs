@@ -182,7 +182,9 @@ namespace Lombiq.HipChatToTeams.Services
 
                         if (cursor.SkipMessages % 50 == 0)
                         {
-                            TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel.");
+                            var waitSeconds = 5;
+                            TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel. Waiting {waitSeconds}s not to cause API throttling.");
+                            await Task.Delay(waitSeconds * 1000);
                         }
                     }
 
