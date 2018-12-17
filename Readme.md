@@ -36,19 +36,7 @@ Keep in mind that you need to be both a HipChat and a Teams admin in your compan
 
 ## Notable features missing and bugs
 
-Features:
-- Ability to create channels under multiple teams.
-- Pushing messages from a HipChat room to an existing channel (mostly needed for the General channel).
-- Mentions
-- [Request batching](https://docs.microsoft.com/en-us/graph/json-batching) to avoid API throttling slowing down the import. Tried it but it doesn't work due to "Resource not found for the segment 'beta'.". See [this post](https://techcommunity.microsoft.com/t5/Microsoft-Teams/Chat-thread-creation-API-issues/m-p/302494#M22568).
-- Possibly a better way to log in for the API instead of fishing out the authorization token.
-
-Bugs:
-- Message timestamps don't take effect.
-- Attachments don't get attached.
-- Messages are not posted in the name of the original user (while this is not implemented during initial testing we couldn't find a way to do this).
-
-Also see: https://techcommunity.microsoft.com/t5/Microsoft-Teams/Chat-thread-creation-API-issues/m-p/302388#M22558.
+See [the issues on GitHub](https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues).
 
 
 ## Some implementation notes
