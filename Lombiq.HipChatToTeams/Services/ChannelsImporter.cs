@@ -28,7 +28,7 @@ namespace Lombiq.HipChatToTeams.Services
 
             if (teamToImportInto == null)
             {
-                throw new Exception($"The team \"{configuration.TeamNameToImportChannelsInto}\" that was configured to import channels into wasn't found among the teams joined by the user authenticated for the import.");
+                throw new Exception($"The team \"{configuration.TeamNameToImportChannelsInto}\" that was configured to import channels into wasn't found among the teams joined by the user authenticated for the import. (Maybe the user is not a member in that team?)");
             }
 
             if (!File.Exists(CursorPath))
