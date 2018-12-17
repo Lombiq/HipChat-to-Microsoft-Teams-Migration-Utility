@@ -6,7 +6,7 @@ Utility to migrate Atlassian HipChat content to Microsoft Teams. You can use thi
 
 Currently the app can import rooms and messages from a HipChat export file into Teams channels under a specific team. See below for missing features and bugs.
 
-Note that this being a utility with just temporary use simplicity of implementation was favored against long-term maintainability. Note that the guide assumes you're using Windows but everything should work equally well under any OS supported by .NET Core.
+Note that this being a utility with just temporary use simplicity of implementation was favored against long-term maintainability. Note that the guide assumes you're using Windows but everything should work equally well under any OS supported by .NET Core. However, released executables are available only for Windows 64b currently.
 
 
 ## Running the app
