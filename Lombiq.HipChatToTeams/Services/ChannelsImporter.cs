@@ -14,7 +14,7 @@ namespace Lombiq.HipChatToTeams.Services
     {
         private const string CursorPath = "ImportCursor.json";
 
-        private const int DefaultThrottlingCooldownSeconds = 30;
+        private const int DefaultThrottlingCooldownSeconds = 60;
         private static int _throttlingCooldownSeconds = DefaultThrottlingCooldownSeconds;
 
 
