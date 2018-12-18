@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using Lombiq.HipChatToTeams.Models;
 using Lombiq.HipChatToTeams.Models.HipChat;
@@ -95,7 +96,11 @@ namespace Lombiq.HipChatToTeams.Services
                     var historyFilePath = Path.Combine(roomFolderPath, "history.json");
                     var messages = JsonConvert
                         .DeserializeObject<Message[]>(await File.ReadAllTextAsync(historyFilePath), new MessageJsonConverter())
-                        .Where(message => !(message is ArchiveRoomMessage))
+                        .Where(message => message != null && !(message is ArchiveRoomMessage))
+                        // To preserve the original order at least we need to reverse the data set. This wouldn't be
+                        // needed if the created message's timestamp would actually take effect, see:
+                        // https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues/1
+                        .Reverse()
                         .Skip(cursor.SkipMessages);
 
                     foreach (var message in messages)
@@ -172,6 +177,8 @@ namespace Lombiq.HipChatToTeams.Services
                             chatMessage.Body.Content = $"{((NotificationMessage)message).Sender}:<br>{chatMessage.Body.Content}";
                         }
 
+                        chatMessage.Body.Content = message.Timestamp.ToString() + " " + chatMessage.Body.Content;
+
                         await graphApi.CreateThread(
                             teamToImportInto.Id,
                             channel.Id,
@@ -201,7 +208,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                     Console.WriteLine("======================");
                 }
-                catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.TooManyRequests)
                 {
                     TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {_throttlingCooldownMinutes} minutes, then retrying. If this happens again and again then close the app and wait some time (more than an hour, or sometimes even a day) before starting it again.");
 
@@ -214,13 +221,17 @@ namespace Lombiq.HipChatToTeams.Services
 
                     await ImportChannelsFromRoomsAsync(importContext);
                 }
-                catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+                catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.ServiceUnavailable)
                 {
                     var waitSeconds = 10;
                     TimestampedConsole.WriteLine($"A request failed with the error Service Unavailable. Waiting {waitSeconds}s, then retrying.");
                     await Task.Delay(waitSeconds * 1000);
 
                     await ImportChannelsFromRoomsAsync(importContext);
+                }
+                catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
+                {
+                    throw;
                 }
                 catch (Exception ex)
                 {

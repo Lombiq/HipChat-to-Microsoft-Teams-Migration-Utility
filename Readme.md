@@ -2,9 +2,9 @@
 
 
 
-Utility to migrate Atlassian HipChat content to Microsoft Teams. You can use this instead of waiting for [official support](https://microsoftteams.uservoice.com/forums/555103-public/suggestions/16933120-importing-from-slack-hipchat-flowdock-basecamp). We're testing this utility at [Lombiq Technologies](https://lombiq.com) (a web development company working with Microsoft technologies) with a 4GB+ HipChat export package containing more than 200k messages. The tool is intended for very technical users and developers.
+Utility to migrate Atlassian HipChat content to Microsoft Teams. You can use this instead of waiting for [official support](https://microsoftteams.uservoice.com/forums/555103-public/suggestions/16933120-importing-from-slack-hipchat-flowdock-basecamp). We're testing this utility at [Lombiq Technologies](https://lombiq.com) (a web development company working with Microsoft technologies) with a 4GB+ HipChat export package containing more than 200k messages (in rooms; a lot more with private chats). The tool is intended for very technical users and developers.
 
-Currently the app can import rooms and messages from a HipChat export file into Teams channels under a specific team. See below for missing features and bugs.
+Currently the app can import rooms and messages from a HipChat export file into Teams channels under a specific team. See [the issue tracker on GitHub](https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues) for missing features and bugs.
 
 Note that this being a utility with just temporary use simplicity of implementation was favored against long-term maintainability. Note that the guide assumes you're using Windows but everything should work equally well under any OS supported by .NET Core. However, released executables are available only for Windows 64b currently.
 
@@ -36,7 +36,7 @@ Keep in mind that you need to be both a HipChat and a Teams admin in your compan
 
 ## Notable features missing and bugs
 
-See [the issues on GitHub](https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues).
+See [the issue tracker on GitHub](https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues).
 
 
 ## Some implementation notes
