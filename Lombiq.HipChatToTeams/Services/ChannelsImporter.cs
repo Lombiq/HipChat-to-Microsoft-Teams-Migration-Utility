@@ -96,7 +96,7 @@ namespace Lombiq.HipChatToTeams.Services
                     var historyFilePath = Path.Combine(roomFolderPath, "history.json");
                     var messages = JsonConvert
                         .DeserializeObject<Message[]>(await File.ReadAllTextAsync(historyFilePath), new MessageJsonConverter())
-                        .Where(message => !(message is ArchiveRoomMessage))
+                        .Where(message => message != null && !(message is ArchiveRoomMessage))
                         // To preserve the original order at least we need to reverse the data set. This wouldn't be
                         // needed if the created message's timestamp would actually take effect, see:
                         // https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues/1
