@@ -14,8 +14,8 @@ namespace Lombiq.HipChatToTeams.Services
     {
         private const string CursorPath = "ImportCursor.json";
 
-        private const int DefaultThrottlingCooldownSeconds = 60;
-        private static int _throttlingCooldownSeconds = DefaultThrottlingCooldownSeconds;
+        private const int DefaultThrottlingCooldownMinutes = 10;
+        private static int _throttlingCooldownMinutes = DefaultThrottlingCooldownMinutes;
 
 
         public static async Task ImportChannelsFromRoomsAsync(ImportContext importContext)
@@ -182,7 +182,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                         cursor.SkipMessages++;
                         await UpdateCursor(cursor);
-                        _throttlingCooldownSeconds = DefaultThrottlingCooldownSeconds;
+                        _throttlingCooldownMinutes = DefaultThrottlingCooldownMinutes;
 
                         // Waiting a bit to avoid API throttling.
                         await Task.Delay(500);
@@ -203,14 +203,14 @@ namespace Lombiq.HipChatToTeams.Services
                 }
                 catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 {
-                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {_throttlingCooldownSeconds} seconds, then retrying. If this happens again and again then close the app and wait some time (more than an hour, or sometimes even a day) before starting it again.");
+                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {_throttlingCooldownMinutes} minutes, then retrying. If this happens again and again then close the app and wait some time (more than an hour, or sometimes even a day) before starting it again.");
 
                     // While some APIs return a Retry-After header to indicate when you should retry a throttled
                     // request (see: https://docs.microsoft.com/en-us/graph/throttling) the Teams endpoints don't.
                     // Also, all endpoints seem to have their own limits, because after the message creation is
                     // throttled e.g. the user APIs still work. So we need to use such hacks.
-                    await Task.Delay(_throttlingCooldownSeconds * 1000);
-                    _throttlingCooldownSeconds *= 2;
+                    await Task.Delay(_throttlingCooldownMinutes * 60000);
+                    _throttlingCooldownMinutes *= 2;
 
                     await ImportChannelsFromRoomsAsync(importContext);
                 }
