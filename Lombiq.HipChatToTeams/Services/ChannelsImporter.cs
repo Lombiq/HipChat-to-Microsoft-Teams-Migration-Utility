@@ -203,7 +203,7 @@ namespace Lombiq.HipChatToTeams.Services
                 }
                 catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 {
-                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {_throttlingCooldownSeconds} seconds, then retrying. If this happens again and again then close the app and wait some time (more than an hour) before starting it again.");
+                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {_throttlingCooldownSeconds} seconds, then retrying. If this happens again and again then close the app and wait some time (more than an hour, or sometimes even a day) before starting it again.");
 
                     // While some APIs return a Retry-After header to indicate when you should retry a throttled
                     // request (see: https://docs.microsoft.com/en-us/graph/throttling) the Teams endpoints don't.
@@ -224,7 +224,7 @@ namespace Lombiq.HipChatToTeams.Services
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception($"Importing the room \"{room.Name}\" with the description \"{room.Topic}\" failed.", ex);
+                    throw new Exception($"Importing the room \"{room.Name}\" with the description \"{room.Topic}\" failed. This error can't be retried.", ex);
                 }
             }
         }
