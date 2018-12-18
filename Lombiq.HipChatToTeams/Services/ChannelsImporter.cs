@@ -130,7 +130,8 @@ namespace Lombiq.HipChatToTeams.Services
                                 var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
 
                                 // The content type is not yet used because attaching files doesn't take effect any
-                                // way, and posting bigger files won't work either.
+                                // way, and posting bigger files won't work either. See:
+                                // https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues/2
                                 var contentType = MimeTypeMap.List.MimeTypeMap
                                     .GetMimeType(Path.GetExtension(attachmentPath))
                                     .FirstOrDefault();
@@ -148,6 +149,9 @@ namespace Lombiq.HipChatToTeams.Services
                                 {
                                     new ChatMessageAttachment
                                     {
+                                        // This could work, but doesn't work either:
+                                        //ContentUrl = $"data:{contentType};base64," + Convert.ToBase64String(await File.ReadAllBytesAsync(attachmentPath)),
+                                        //ContentType = contentType
                                         ContentUrl = userMessage.Attachment.Url,
                                         ContentType = "reference"
                                     }

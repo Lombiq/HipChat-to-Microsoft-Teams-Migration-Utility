@@ -11,7 +11,7 @@ Note that this being a utility with just temporary use simplicity of implementat
 
 ## Running the app
 
-If you're a .NET developer then grab the latest source and run the app from the source (you'll need at least VS 2017 and 2.2 of the .NET Core SDK). Otherwise download the latest release from [GitHub](https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/releases).
+If you're a .NET developer then grab the latest source and run the app from the source (you'll need at least VS 2017 and 2.2 of the .NET Core SDK). Otherwise download the latest release from [GitHub](https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/releases) and run the exe file in the zip. Be sure to check the full usage guide below.
 
 
 ## Usage
