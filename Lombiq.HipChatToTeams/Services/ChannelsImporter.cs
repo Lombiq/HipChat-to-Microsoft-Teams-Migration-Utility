@@ -182,7 +182,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                         if (cursor.SkipMessages % 50 == 0)
                         {
-                            var waitSeconds = 10;
+                            var waitSeconds = 25;
                             TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel. Waiting {waitSeconds}s not to cause API throttling.");
                             await Task.Delay(waitSeconds * 1000);
                         }
@@ -208,6 +208,12 @@ namespace Lombiq.HipChatToTeams.Services
                     _throttlingCooldownSeconds *= 2;
 
                     await ImportChannelsFromRoomsAsync(importContext);
+                }
+                catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+                {
+                    var waitSeconds = 10;
+                    TimestampedConsole.WriteLine($"A request failed with the error Service Unavailable. Waiting {waitSeconds}s, then retrying.");
+                    await Task.Delay(waitSeconds * 1000);
                 }
                 catch (Exception ex)
                 {
