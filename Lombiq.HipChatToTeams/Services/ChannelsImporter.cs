@@ -184,11 +184,12 @@ namespace Lombiq.HipChatToTeams.Services
                         await UpdateCursor(cursor);
                         _throttlingCooldownSeconds = DefaultThrottlingCooldownSeconds;
 
+                        // Waiting a bit to avoid API throttling.
+                        await Task.Delay(500);
+
                         if (cursor.SkipMessages % 50 == 0)
                         {
-                            var waitSeconds = 25;
-                            TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel. Waiting {waitSeconds}s not to cause API throttling.");
-                            await Task.Delay(waitSeconds * 1000);
+                            TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel.");
                         }
                     }
 
