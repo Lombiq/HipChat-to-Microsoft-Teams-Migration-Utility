@@ -14,8 +14,8 @@ namespace Lombiq.HipChatToTeams.Services
     {
         private const string CursorPath = "ImportCursor.json";
 
-        private const int DefaultThrottlingCooldownSeconds = 30;
-        private static int _throttlingCooldownSeconds = DefaultThrottlingCooldownSeconds;
+        private const int DefaultThrottlingCooldownMinutes = 10;
+        private static int _throttlingCooldownMinutes = DefaultThrottlingCooldownMinutes;
 
 
         public static async Task ImportChannelsFromRoomsAsync(ImportContext importContext)
@@ -130,7 +130,8 @@ namespace Lombiq.HipChatToTeams.Services
                                 var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
 
                                 // The content type is not yet used because attaching files doesn't take effect any
-                                // way, and posting bigger files won't work either.
+                                // way, and posting bigger files won't work either. See:
+                                // https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues/2
                                 var contentType = MimeTypeMap.List.MimeTypeMap
                                     .GetMimeType(Path.GetExtension(attachmentPath))
                                     .FirstOrDefault();
@@ -148,6 +149,9 @@ namespace Lombiq.HipChatToTeams.Services
                                 {
                                     new ChatMessageAttachment
                                     {
+                                        // This could work, but doesn't work either:
+                                        //ContentUrl = $"data:{contentType};base64," + Convert.ToBase64String(await File.ReadAllBytesAsync(attachmentPath)),
+                                        //ContentType = contentType
                                         ContentUrl = userMessage.Attachment.Url,
                                         ContentType = "reference"
                                     }
@@ -178,13 +182,14 @@ namespace Lombiq.HipChatToTeams.Services
 
                         cursor.SkipMessages++;
                         await UpdateCursor(cursor);
-                        _throttlingCooldownSeconds = DefaultThrottlingCooldownSeconds;
+                        _throttlingCooldownMinutes = DefaultThrottlingCooldownMinutes;
+
+                        // Waiting a bit to avoid API throttling.
+                        await Task.Delay(500);
 
                         if (cursor.SkipMessages % 50 == 0)
                         {
-                            var waitSeconds = 5;
-                            TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel. Waiting {waitSeconds}s not to cause API throttling.");
-                            await Task.Delay(waitSeconds * 1000);
+                            TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel.");
                         }
                     }
 
@@ -198,20 +203,28 @@ namespace Lombiq.HipChatToTeams.Services
                 }
                 catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
                 {
-                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {_throttlingCooldownSeconds} seconds, then retrying. If this happens again and again then close the app and wait some time (more than an hour) before starting it again.");
+                    TimestampedConsole.WriteLine($"API requests are being throttled. Waiting for {_throttlingCooldownMinutes} minutes, then retrying. If this happens again and again then close the app and wait some time (more than an hour, or sometimes even a day) before starting it again.");
 
                     // While some APIs return a Retry-After header to indicate when you should retry a throttled
                     // request (see: https://docs.microsoft.com/en-us/graph/throttling) the Teams endpoints don't.
                     // Also, all endpoints seem to have their own limits, because after the message creation is
                     // throttled e.g. the user APIs still work. So we need to use such hacks.
-                    await Task.Delay(_throttlingCooldownSeconds * 1000);
-                    _throttlingCooldownSeconds *= 2;
+                    await Task.Delay(_throttlingCooldownMinutes * 60000);
+                    _throttlingCooldownMinutes *= 2;
+
+                    await ImportChannelsFromRoomsAsync(importContext);
+                }
+                catch (ApiException ex) when (ex.StatusCode == System.Net.HttpStatusCode.ServiceUnavailable)
+                {
+                    var waitSeconds = 10;
+                    TimestampedConsole.WriteLine($"A request failed with the error Service Unavailable. Waiting {waitSeconds}s, then retrying.");
+                    await Task.Delay(waitSeconds * 1000);
 
                     await ImportChannelsFromRoomsAsync(importContext);
                 }
                 catch (Exception ex)
                 {
-                    throw new Exception($"Importing the room \"{room.Name}\" with the description \"{room.Topic}\" failed.", ex);
+                    throw new Exception($"Importing the room \"{room.Name}\" with the description \"{room.Topic}\" failed. This error can't be retried.", ex);
                 }
             }
         }

@@ -47,7 +47,7 @@ namespace Lombiq.HipChatToTeams
                 }
                 catch (Exception ex)
                 {
-                    TimestampedConsole.WriteLine("The import failed with the following error: " + Environment.NewLine + ex.ToString());
+                    TimestampedConsole.WriteLine("The import failed with the following unrecoverable error: " + Environment.NewLine + ex.ToString());
                 }
             }).Wait();
 
