@@ -177,6 +177,8 @@ namespace Lombiq.HipChatToTeams.Services
                             chatMessage.Body.Content = $"{((NotificationMessage)message).Sender}:<br>{chatMessage.Body.Content}";
                         }
 
+                        chatMessage.Body.Content = message.Timestamp.ToString() + " " + chatMessage.Body.Content;
+
                         await graphApi.CreateThread(
                             teamToImportInto.Id,
                             channel.Id,
