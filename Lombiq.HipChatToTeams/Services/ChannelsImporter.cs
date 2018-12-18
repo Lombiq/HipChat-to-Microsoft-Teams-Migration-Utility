@@ -219,6 +219,8 @@ namespace Lombiq.HipChatToTeams.Services
                     var waitSeconds = 10;
                     TimestampedConsole.WriteLine($"A request failed with the error Service Unavailable. Waiting {waitSeconds}s, then retrying.");
                     await Task.Delay(waitSeconds * 1000);
+
+                    await ImportChannelsFromRoomsAsync(importContext);
                 }
                 catch (Exception ex)
                 {
