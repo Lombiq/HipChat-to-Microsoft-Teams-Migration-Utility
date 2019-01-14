@@ -31,6 +31,7 @@ Keep in mind that you need to be both a HipChat and a Teams admin in your compan
 6. Specify the rest of the configuration as well:
     - `ExportFolderPath`: The file system path to the folder where you unzipped the HipChat export package.
     - `TeamNameToImportChannelsInto`: Name of the Teams team where you want all the channels to be imported into. Currently all channels are imported into a single team. This wouldn't be an issue if channels could be moved (https://microsoftteams.uservoice.com/forums/555103-public/suggestions/16939708-move-channels-into-other-teams).
+    - `NumberOfHipChatMessagesToImportIntoTeamsMessage`: You may be able to guess :). If it's greater than 1 then multiple HipChat messages will be imported into a single Teams message. You can use this to overcome Graph API throttling limitations. It seems that the maximum is about 100, with more HipChat messages the request will be too large.
 7. Run the app and wait for the import to complete. In the console you'll see status and possibly error messages.
 
 
