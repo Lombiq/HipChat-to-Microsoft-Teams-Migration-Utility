@@ -119,49 +119,49 @@ namespace Lombiq.HipChatToTeams.Services
                         {
                             // Users are not fetched yet and this doesn't work, so using a hack to show
                             // the user's name in the message body for now.
-                            chatMessage.From = new IdentitySet
-                            {
-                                User = new User
-                                {
-                                    DisplayName = userMessage.Sender.Name
-                                }
-                            };
+                            //chatMessage.From = new IdentitySet
+                            //{
+                            //    User = new User
+                            //    {
+                            //        DisplayName = userMessage.Sender.Name
+                            //    }
+                            //};
 
                             chatMessage.Body.Content = $"{userMessage.Sender.Name}:<br>{chatMessage.Body.Content}";
 
-                            if (userMessage.Attachment != null)
-                            {
-                                var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
-                                var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
+                            // Attachments don't work, see: https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues/2
+                            //if (userMessage.Attachment != null)
+                            //{
+                            //    var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
+                            //    var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
 
-                                // The content type is not yet used because attaching files doesn't take effect any
-                                // way, and posting bigger files won't work either. See:
-                                // https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues/2
-                                var contentType = MimeTypeMap.List.MimeTypeMap
-                                    .GetMimeType(Path.GetExtension(attachmentPath))
-                                    .FirstOrDefault();
+                            //    // The content type is not yet used because attaching files doesn't take effect any
+                            //    // way, and posting bigger files won't work either.
+                            //    var contentType = MimeTypeMap.List.MimeTypeMap
+                            //        .GetMimeType(Path.GetExtension(attachmentPath))
+                            //        .FirstOrDefault();
 
-                                if (contentType == null ||
-                                        (!contentType.StartsWith("image/") &&
-                                        !contentType.StartsWith("video/") &&
-                                        !contentType.StartsWith("audio/") &&
-                                        !contentType.StartsWith("application/vnd.microsoft.card.")))
-                                {
-                                    contentType = "file";
-                                }
+                            //    if (contentType == null ||
+                            //            (!contentType.StartsWith("image/") &&
+                            //            !contentType.StartsWith("video/") &&
+                            //            !contentType.StartsWith("audio/") &&
+                            //            !contentType.StartsWith("application/vnd.microsoft.card.")))
+                            //    {
+                            //        contentType = "file";
+                            //    }
 
-                                chatMessage.Attachments = new[]
-                                {
-                                    new ChatMessageAttachment
-                                    {
-                                        // This could work, but doesn't work either:
-                                        //ContentUrl = $"data:{contentType};base64," + Convert.ToBase64String(await File.ReadAllBytesAsync(attachmentPath)),
-                                        //ContentType = contentType
-                                        ContentUrl = userMessage.Attachment.Url,
-                                        ContentType = "reference"
-                                    }
-                                };
-                            }
+                            //    chatMessage.Attachments = new[]
+                            //    {
+                            //        new ChatMessageAttachment
+                            //        {
+                            //            // This could work, but doesn't work either:
+                            //            //ContentUrl = $"data:{contentType};base64," + Convert.ToBase64String(await File.ReadAllBytesAsync(attachmentPath)),
+                            //            //ContentType = contentType
+                            //            ContentUrl = userMessage.Attachment.Url,
+                            //            ContentType = "reference"
+                            //        }
+                            //    };
+                            //}
                         }
                         else
                         {
