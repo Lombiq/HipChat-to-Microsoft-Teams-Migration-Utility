@@ -25,12 +25,6 @@ namespace Lombiq.HipChatToTeams.Services
             var graphApi = importContext.GraphApi;
 
             var teams = await graphApi.GetMyTeamsAsync();
-            var teamToImportInto = teams.Items.SingleOrDefault(team => team.DisplayName == configuration.TeamNameToImportChannelsInto);
-
-            if (teamToImportInto == null)
-            {
-                throw new Exception($"The team \"{configuration.TeamNameToImportChannelsInto}\" that was configured to import channels into wasn't found among the teams joined by the user authenticated for the import. (Maybe the user is not a member in that team?)");
-            }
 
             if (!File.Exists(CursorPath))
             {
@@ -51,6 +45,19 @@ namespace Lombiq.HipChatToTeams.Services
 
             foreach (var room in rooms)
             {
+                string teamNameToImportChannelInto;
+                if (!configuration.HipChatRoomsToTeams.TryGetValue(room.Name, out teamNameToImportChannelInto))
+                {
+                    teamNameToImportChannelInto = configuration.HipChatRoomsToTeams["$Default"];
+                }
+
+                var teamToImportInto = teams.Items.SingleOrDefault(team => team.DisplayName == teamNameToImportChannelInto);
+
+                if (teamToImportInto == null)
+                {
+                    throw new Exception($"The \"{teamNameToImportChannelInto}\" team that was configured to import the {room.Name} HipChat room's content into wasn't found among the teams joined by the user authenticated for the import. (Maybe the user is not a member of that team?)");
+                }
+
                 try
                 {
                     var channelName = room.Name;
