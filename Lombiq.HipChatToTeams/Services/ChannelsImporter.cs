@@ -114,11 +114,11 @@ namespace Lombiq.HipChatToTeams.Services
                         .Skip(cursor.SkipMessages);
 
                     var batchSize = configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage;
-                    var batchIndex = 0;
 
-                    while (messages.Any())
+                    while (messages.Skip(batchSize).Any())
                     {
-                        var messageBatch = messages.Skip(batchIndex * batchSize).Take(batchSize);
+                        messages = messages.Skip(batchSize);
+                        var messageBatch = messages.Take(batchSize);
 
                         var chatMessage = new ChatMessage
                         {
@@ -224,8 +224,6 @@ namespace Lombiq.HipChatToTeams.Services
                         {
                             TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel.");
                         }
-
-                        batchIndex++;
                     }
 
                     cursor.SkipRooms++;
