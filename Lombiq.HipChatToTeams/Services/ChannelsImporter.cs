@@ -25,12 +25,6 @@ namespace Lombiq.HipChatToTeams.Services
             var graphApi = importContext.GraphApi;
 
             var teams = await graphApi.GetMyTeamsAsync();
-            var teamToImportInto = teams.Items.SingleOrDefault(team => team.DisplayName == configuration.TeamNameToImportChannelsInto);
-
-            if (teamToImportInto == null)
-            {
-                throw new Exception($"The team \"{configuration.TeamNameToImportChannelsInto}\" that was configured to import channels into wasn't found among the teams joined by the user authenticated for the import. (Maybe the user is not a member in that team?)");
-            }
 
             if (!File.Exists(CursorPath))
             {
@@ -51,9 +45,25 @@ namespace Lombiq.HipChatToTeams.Services
 
             foreach (var room in rooms)
             {
+                if (!configuration.HipChatRoomsToTeams.TryGetValue(room.Name, out string teamNameToImportChannelInto))
+                {
+                    teamNameToImportChannelInto = configuration.HipChatRoomsToTeams["$Default"];
+                }
+
+                var teamToImportInto = teams.Items.SingleOrDefault(team => team.DisplayName == teamNameToImportChannelInto);
+
+                if (teamToImportInto == null)
+                {
+                    throw new Exception($"The \"{teamNameToImportChannelInto}\" team that was configured to import the \"{room.Name}\" HipChat room's content into wasn't found among the teams joined by the user authenticated for the import. (Maybe the user is not a member of that team?)");
+                }
+
                 try
                 {
-                    var channelName = room.Name;
+
+                    if (!configuration.HipChatRoomsToChannels.TryGetValue(room.Name, out string channelName))
+                    {
+                        channelName = room.Name;
+                    }
 
                     // This can be used to test a single room again and again, without having to delete anything.
                     //channelName += new Random().Next();
@@ -61,7 +71,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                     Console.WriteLine("======================");
 
-                    TimestampedConsole.WriteLine($"Starting processing the \"{channelName}\" room.");
+                    TimestampedConsole.WriteLine($"Starting processing the \"{room.Name}\" room.");
 
                     if (unsupportedChannelNameCharacters.Any(character => channelName.Contains(character)))
                     {
@@ -103,81 +113,97 @@ namespace Lombiq.HipChatToTeams.Services
                         .Reverse()
                         .Skip(cursor.SkipMessages);
 
-                    foreach (var message in messages)
+                    var batchSize = configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage;
+
+                    while (messages.Skip(batchSize).Any())
                     {
+                        messages = messages.Skip(batchSize);
+                        var messageBatch = messages.Take(batchSize);
+
                         var chatMessage = new ChatMessage
                         {
                             Body = new ItemBody
                             {
-                                Content = message.Body,
                                 ContentType = "1"
                             },
-                            CreatedDateTime = message.Timestamp
+                            CreatedDateTime = messageBatch.First().Timestamp
                         };
 
-                        if (message is UserMessage userMessage)
+                        var batchedMessageBody = string.Empty;
+
+                        foreach (var message in messageBatch)
                         {
-                            // Users are not fetched yet and this doesn't work, so using a hack to show
-                            // the user's name in the message body for now.
-                            chatMessage.From = new IdentitySet
+                            var messageBody = message.Body;
+
+                            if (message is UserMessage userMessage)
                             {
-                                User = new User
-                                {
-                                    DisplayName = userMessage.Sender.Name
-                                }
-                            };
+                                // Users are not fetched yet and this doesn't work, so using a hack to show
+                                // the user's name in the message body for now.
+                                //chatMessage.From = new IdentitySet
+                                //{
+                                //    User = new User
+                                //    {
+                                //        DisplayName = userMessage.Sender.Name
+                                //    }
+                                //};
 
-                            chatMessage.Body.Content = $"{userMessage.Sender.Name}:<br>{chatMessage.Body.Content}";
+                                messageBody = $"{userMessage.Sender.Name}:<br>{messageBody}";
 
-                            if (userMessage.Attachment != null)
-                            {
-                                var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
-                                var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
+                                // Attachments don't work, see: https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues/2
+                                //if (userMessage.Attachment != null)
+                                //{
+                                //    var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
+                                //    var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
 
-                                // The content type is not yet used because attaching files doesn't take effect any
-                                // way, and posting bigger files won't work either. See:
-                                // https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues/2
-                                var contentType = MimeTypeMap.List.MimeTypeMap
-                                    .GetMimeType(Path.GetExtension(attachmentPath))
-                                    .FirstOrDefault();
+                                //    // The content type is not yet used because attaching files doesn't take effect any
+                                //    // way, and posting bigger files won't work either.
+                                //    var contentType = MimeTypeMap.List.MimeTypeMap
+                                //        .GetMimeType(Path.GetExtension(attachmentPath))
+                                //        .FirstOrDefault();
 
-                                if (contentType == null ||
-                                        (!contentType.StartsWith("image/") &&
-                                        !contentType.StartsWith("video/") &&
-                                        !contentType.StartsWith("audio/") &&
-                                        !contentType.StartsWith("application/vnd.microsoft.card.")))
-                                {
-                                    contentType = "file";
-                                }
+                                //    if (contentType == null ||
+                                //            (!contentType.StartsWith("image/") &&
+                                //            !contentType.StartsWith("video/") &&
+                                //            !contentType.StartsWith("audio/") &&
+                                //            !contentType.StartsWith("application/vnd.microsoft.card.")))
+                                //    {
+                                //        contentType = "file";
+                                //    }
 
-                                chatMessage.Attachments = new[]
-                                {
-                                    new ChatMessageAttachment
-                                    {
-                                        // This could work, but doesn't work either:
-                                        //ContentUrl = $"data:{contentType};base64," + Convert.ToBase64String(await File.ReadAllBytesAsync(attachmentPath)),
-                                        //ContentType = contentType
-                                        ContentUrl = userMessage.Attachment.Url,
-                                        ContentType = "reference"
-                                    }
-                                };
+                                //    chatMessage.Attachments = new[]
+                                //    {
+                                //        new ChatMessageAttachment
+                                //        {
+                                //            // This could work, but doesn't work either:
+                                //            //ContentUrl = $"data:{contentType};base64," + Convert.ToBase64String(await File.ReadAllBytesAsync(attachmentPath)),
+                                //            //ContentType = contentType
+                                //            ContentUrl = userMessage.Attachment.Url,
+                                //            ContentType = "reference"
+                                //        }
+                                //    };
+                                //}
                             }
-                        }
-                        else
-                        {
-                            // This doesn't work.
-                            //chatMessage.From = new From
-                            //{
-                            //    Guest = new User
-                            //    {
-                            //        DisplayName = ((NotificationMessage)message).Sender
-                            //    }
-                            //};
+                            else
+                            {
+                                // This doesn't work.
+                                //chatMessage.From = new From
+                                //{
+                                //    Guest = new User
+                                //    {
+                                //        DisplayName = ((NotificationMessage)message).Sender
+                                //    }
+                                //};
 
-                            chatMessage.Body.Content = $"{((NotificationMessage)message).Sender}:<br>{chatMessage.Body.Content}";
+                                messageBody = $"{((NotificationMessage)message).Sender}:<br>{messageBody}";
+                            }
+
+                            messageBody = message.Timestamp.ToString() + " " + messageBody;
+                            if (batchSize != 1) messageBody += "<hr>";
+
+                            batchedMessageBody += messageBody;
                         }
 
-                        chatMessage.Body.Content = message.Timestamp.ToString() + " " + chatMessage.Body.Content;
+                        chatMessage.Body.Content = batchedMessageBody;
 
                         await graphApi.CreateThread(
                             teamToImportInto.Id,
@@ -187,7 +213,7 @@ namespace Lombiq.HipChatToTeams.Services
                                 RootMessage = chatMessage
                             });
 
-                        cursor.SkipMessages++;
+                        cursor.SkipMessages += batchSize;
                         await UpdateCursor(cursor);
                         _throttlingCooldownMinutes = DefaultThrottlingCooldownMinutes;
 
