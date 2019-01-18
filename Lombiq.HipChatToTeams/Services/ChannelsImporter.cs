@@ -45,8 +45,7 @@ namespace Lombiq.HipChatToTeams.Services
 
             foreach (var room in rooms)
             {
-                string teamNameToImportChannelInto;
-                if (!configuration.HipChatRoomsToTeams.TryGetValue(room.Name, out teamNameToImportChannelInto))
+                if (!configuration.HipChatRoomsToTeams.TryGetValue(room.Name, out string teamNameToImportChannelInto))
                 {
                     teamNameToImportChannelInto = configuration.HipChatRoomsToTeams["$Default"];
                 }
@@ -55,12 +54,16 @@ namespace Lombiq.HipChatToTeams.Services
 
                 if (teamToImportInto == null)
                 {
-                    throw new Exception($"The \"{teamNameToImportChannelInto}\" team that was configured to import the {room.Name} HipChat room's content into wasn't found among the teams joined by the user authenticated for the import. (Maybe the user is not a member of that team?)");
+                    throw new Exception($"The \"{teamNameToImportChannelInto}\" team that was configured to import the \"{room.Name}\" HipChat room's content into wasn't found among the teams joined by the user authenticated for the import. (Maybe the user is not a member of that team?)");
                 }
 
                 try
                 {
-                    var channelName = room.Name;
+
+                    if (!configuration.HipChatRoomsToChannels.TryGetValue(room.Name, out string channelName))
+                    {
+                        channelName = room.Name;
+                    }
 
                     // This can be used to test a single room again and again, without having to delete anything.
                     //channelName += new Random().Next();
@@ -68,7 +71,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                     Console.WriteLine("======================");
 
-                    TimestampedConsole.WriteLine($"Starting processing the \"{channelName}\" room.");
+                    TimestampedConsole.WriteLine($"Starting processing the \"{room.Name}\" room.");
 
                     if (unsupportedChannelNameCharacters.Any(character => channelName.Contains(character)))
                     {
