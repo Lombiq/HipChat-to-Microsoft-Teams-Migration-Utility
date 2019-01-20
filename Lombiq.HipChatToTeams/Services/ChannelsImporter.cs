@@ -271,6 +271,10 @@ namespace Lombiq.HipChatToTeams.Services
                     {
                         importContext.MessageBatchSizeOverride = 5;
                     }
+                    else if (importContext.MessageBatchSizeOverride == 1)
+                    {
+                        throw new Exception($"The next message to import from the \"{room.Name}\" room is too large. You need to manually shorten it in the corresponding JSON file in the HipChat export package.");
+                    }
                     else
                     {
                         importContext.MessageBatchSizeOverride = 1;
