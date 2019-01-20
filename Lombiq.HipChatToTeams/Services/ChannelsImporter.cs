@@ -115,6 +115,11 @@ namespace Lombiq.HipChatToTeams.Services
 
                     var batchSize = configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage;
 
+                    if (importContext.MessageBatchSizeOverride > 0)
+                    {
+                        batchSize = importContext.MessageBatchSizeOverride;
+                    }
+
                     while (messages.Skip(batchSize).Any())
                     {
                         messages = messages.Skip(batchSize);
@@ -224,6 +229,9 @@ namespace Lombiq.HipChatToTeams.Services
                         {
                             TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel.");
                         }
+
+                        batchSize = configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage;
+                        importContext.MessageBatchSizeOverride = batchSize;
                     }
 
                     cursor.SkipRooms++;
@@ -252,6 +260,22 @@ namespace Lombiq.HipChatToTeams.Services
                     var waitSeconds = 10;
                     TimestampedConsole.WriteLine($"A request failed with the error Service Unavailable. Waiting {waitSeconds}s, then retrying.");
                     await Task.Delay(waitSeconds * 1000);
+
+                    await ImportChannelsFromRoomsAsync(importContext);
+                }
+                catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.RequestEntityTooLarge)
+                {
+                    if (importContext.MessageBatchSizeOverride == configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage &&
+                        importContext.MessageBatchSizeOverride > 5)
+                    {
+                        importContext.MessageBatchSizeOverride = 5;
+                    }
+                    else
+                    {
+                        importContext.MessageBatchSizeOverride = 1;
+                    }
+
+                    TimestampedConsole.WriteLine($"Importing {configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage} HipChat messages into a Teams message resulted in a message too large. Retrying with just {importContext.MessageBatchSizeOverride} messages.")
 
                     await ImportChannelsFromRoomsAsync(importContext);
                 }
