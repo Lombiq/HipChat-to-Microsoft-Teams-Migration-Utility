@@ -8,6 +8,7 @@ namespace Lombiq.HipChatToTeams
     {
         public Configuration Configuration { get; set; }
         public int MessageBatchSizeOverride { get; set; }
+        public bool ShortenNextMessage { get; set; }
         public ITeamsGraphApi GraphApi { get; set; }
     }
 }

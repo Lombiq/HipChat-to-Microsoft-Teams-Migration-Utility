@@ -139,6 +139,12 @@ namespace Lombiq.HipChatToTeams.Services
                         {
                             var messageBody = message.Body;
 
+                            if (importContext.ShortenNextMessage)
+                            {
+                                messageBody = 
+                                    messageBody.Substring(0, configuration.ShortenLongMessagesToCharacterCount) + "...";
+                            }
+
                             if (message is UserMessage userMessage)
                             {
                                 // Users are not fetched yet and this doesn't work, so using a hack to show
@@ -205,6 +211,7 @@ namespace Lombiq.HipChatToTeams.Services
                             if (batchSize != 1) messageBody += "<hr>";
 
                             batchedMessageBody += messageBody;
+                            importContext.ShortenNextMessage = false;
                         }
 
                         chatMessage.Body.Content = batchedMessageBody;
@@ -271,13 +278,23 @@ namespace Lombiq.HipChatToTeams.Services
                     {
                         importContext.MessageBatchSizeOverride = 5;
                     }
-                    else if (importContext.MessageBatchSizeOverride == 1)
+                    else if (importContext.MessageBatchSizeOverride != 1)
                     {
-                        throw new Exception($"The next message to import from the \"{room.Name}\" room is too large. You need to manually shorten it in the corresponding JSON file in the HipChat export package.");
+                        importContext.MessageBatchSizeOverride = 1;
                     }
                     else
                     {
-                        importContext.MessageBatchSizeOverride = 1;
+                        if (configuration.ShortenLongMessagesToCharacterCount > 0)
+                        {
+                            importContext.ShortenNextMessage = true;
+
+                            await ImportChannelsFromRoomsAsync(importContext);
+                            return;
+                        }
+                        else
+                        {
+                            throw new Exception($"The next message to import from the \"{room.Name}\" room is too large. You need to manually shorten it in the corresponding JSON file in the HipChat export package.");
+                        }
                     }
 
                     TimestampedConsole.WriteLine($"Importing {configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage} HipChat messages into a Teams message resulted in a message too large. Retrying with just {importContext.MessageBatchSizeOverride} messages.");

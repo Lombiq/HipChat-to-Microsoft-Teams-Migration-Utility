@@ -9,6 +9,7 @@ namespace Lombiq.HipChatToTeams
         public string ExportFolderPath { get; set; }
         public string AuthorizationToken { get; set; }
         public int NumberOfHipChatMessagesToImportIntoTeamsMessage { get; set; }
+        public int ShortenLongMessagesToCharacterCount { get; set; }
         public Dictionary<string, string> HipChatRoomsToTeams { get; set; }
         public Dictionary<string, string> HipChatRoomsToChannels { get; set; }
     }
