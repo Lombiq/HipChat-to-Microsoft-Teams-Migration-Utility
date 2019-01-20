@@ -120,9 +120,8 @@ namespace Lombiq.HipChatToTeams.Services
                         batchSize = importContext.MessageBatchSizeOverride;
                     }
 
-                    while (messages.Skip(batchSize).Any())
+                    while (messages.Any())
                     {
-                        messages = messages.Skip(batchSize);
                         var messageBatch = messages.Take(batchSize);
 
                         var chatMessage = new ChatMessage
@@ -230,6 +229,8 @@ namespace Lombiq.HipChatToTeams.Services
                             TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel.");
                         }
 
+                        messages = messages.Skip(batchSize);
+
                         batchSize = configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage;
                         importContext.MessageBatchSizeOverride = batchSize;
                     }
@@ -275,7 +276,7 @@ namespace Lombiq.HipChatToTeams.Services
                         importContext.MessageBatchSizeOverride = 1;
                     }
 
-                    TimestampedConsole.WriteLine($"Importing {configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage} HipChat messages into a Teams message resulted in a message too large. Retrying with just {importContext.MessageBatchSizeOverride} messages.")
+                    TimestampedConsole.WriteLine($"Importing {configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage} HipChat messages into a Teams message resulted in a message too large. Retrying with just {importContext.MessageBatchSizeOverride} messages.");
 
                     await ImportChannelsFromRoomsAsync(importContext);
                 }
