@@ -192,6 +192,16 @@ namespace Lombiq.HipChatToTeams.Services
                                 //    }
                                 //};
 
+                                if (messageBody.StartsWith("/code "))
+                                {
+                                    messageBody = $"<pre><code>{messageBody.Substring(6)}</code></pre>";
+                                }
+
+                                if (messageBody.StartsWith("/quote "))
+                                {
+                                    messageBody = $"<blockquote>{messageBody.Substring(7)}</blockquote>";
+                                }
+
                                 messageBody = $"{userMessage.Sender.Name}:<br>{messageBody}";
 
                                 // Attachments don't work, see: https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues/2
