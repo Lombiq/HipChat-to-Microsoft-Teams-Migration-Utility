@@ -59,7 +59,6 @@ namespace Lombiq.HipChatToTeams.Services
 
                 try
                 {
-
                     if (!configuration.HipChatRoomsToChannels.TryGetValue(room.Name, out string channelName))
                     {
                         channelName = room.Name;
@@ -81,13 +80,13 @@ namespace Lombiq.HipChatToTeams.Services
                             $"({unsupportedChannelNameCharactersString})). Offending characters were removed: \"{channelName}\".");
                     }
 
-                    Channel channel = (await graphApi.GetChannels(teamToImportInto.Id))
+                    Channel channel = (await graphApi.GetChannelsAsync(teamToImportInto.Id))
                         .Items
                         .FirstOrDefault(c => c.DisplayName == channelName);
 
                     if (channel == null)
                     {
-                        channel = await graphApi.CreateChannel(
+                        channel = await graphApi.CreateChannelAsync(
                             teamToImportInto.Id,
                             new Channel
                             {
@@ -216,7 +215,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                         chatMessage.Body.Content = batchedMessageBody;
 
-                        await graphApi.CreateThread(
+                        await graphApi.CreateThreadAsync(
                             teamToImportInto.Id,
                             channel.Id,
                             new ChatThread
