@@ -28,6 +28,7 @@ namespace Lombiq.HipChatToTeams
                         // Easier to have full control over the deserialization of AppSettings.json than have it the
                         // ConfigurationBuilder way.
                         Configuration = configuration,
+                        MessageBatchSizeOverride = configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage,
                         GraphApi = RestClient.For<ITeamsGraphApi>(
                             "https://graph.microsoft.com",
                             (request, cancellationToken) =>

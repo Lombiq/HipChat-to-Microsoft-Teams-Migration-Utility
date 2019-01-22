@@ -54,12 +54,47 @@ namespace Lombiq.HipChatToTeams.Services
 
                 if (teamToImportInto == null)
                 {
-                    throw new Exception($"The \"{teamNameToImportChannelInto}\" team that was configured to import the \"{room.Name}\" HipChat room's content into wasn't found among the teams joined by the user authenticated for the import. (Maybe the user is not a member of that team?)");
+                    TimestampedConsole.WriteLine($"The team \"{teamNameToImportChannelInto}\" doesn't exist, so attempting to create it.");
+
+                    using (var response = await graphApi.CreateTeamAsync(new Team { DisplayName = teamNameToImportChannelInto }))
+                    {
+                        if (!response.Headers.TryGetValues("Location", out var locations) || locations.Count() != 1)
+                        {
+                            throw new Exception($"Attempted to create the \"{teamNameToImportChannelInto}\" team but the operation didn't return correctly. Try to create the team manually.");
+                        }
+
+                        var location = locations.Single();
+                        var operation = await graphApi.GetAsyncOperation(location);
+
+                        var tries = 0;
+                        while (operation.Status != "succeeded")
+                        {
+                            if (tries > 10)
+                            {
+                                throw new Exception($"Attempted to create the \"{teamNameToImportChannelInto}\" team but the operation didn't succeed after plenty of time. Try to create the team manually.");
+                            }
+
+                            // https://docs.microsoft.com/en-us/graph/api/resources/teamsasyncoperation?view=graph-rest-beta
+                            // says to wait >30s.
+                            await Task.Delay(31000);
+
+                            operation = await graphApi.GetAsyncOperation(location);
+
+                            tries++;
+                        }
+
+                        teamToImportInto = new Team
+                        {
+                            Id = operation.TargetResourceId,
+                            DisplayName = teamNameToImportChannelInto
+                        };
+                    }
+
+                    TimestampedConsole.WriteLine($"Created the \"{teamNameToImportChannelInto}\" team.");
                 }
 
                 try
                 {
-
                     if (!configuration.HipChatRoomsToChannels.TryGetValue(room.Name, out string channelName))
                     {
                         channelName = room.Name;
@@ -81,13 +116,13 @@ namespace Lombiq.HipChatToTeams.Services
                             $"({unsupportedChannelNameCharactersString})). Offending characters were removed: \"{channelName}\".");
                     }
 
-                    Channel channel = (await graphApi.GetChannels(teamToImportInto.Id))
+                    Channel channel = (await graphApi.GetChannelsAsync(teamToImportInto.Id))
                         .Items
                         .FirstOrDefault(c => c.DisplayName == channelName);
 
                     if (channel == null)
                     {
-                        channel = await graphApi.CreateChannel(
+                        channel = await graphApi.CreateChannelAsync(
                             teamToImportInto.Id,
                             new Channel
                             {
@@ -115,9 +150,13 @@ namespace Lombiq.HipChatToTeams.Services
 
                     var batchSize = configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage;
 
-                    while (messages.Skip(batchSize).Any())
+                    if (importContext.MessageBatchSizeOverride > 0)
                     {
-                        messages = messages.Skip(batchSize);
+                        batchSize = importContext.MessageBatchSizeOverride;
+                    }
+
+                    while (messages.Any())
+                    {
                         var messageBatch = messages.Take(batchSize);
 
                         var chatMessage = new ChatMessage
@@ -135,6 +174,12 @@ namespace Lombiq.HipChatToTeams.Services
                         {
                             var messageBody = message.Body;
 
+                            if (importContext.ShortenNextMessage)
+                            {
+                                messageBody = 
+                                    messageBody.Substring(0, configuration.ShortenLongMessagesToCharacterCount) + "...";
+                            }
+
                             if (message is UserMessage userMessage)
                             {
                                 // Users are not fetched yet and this doesn't work, so using a hack to show
@@ -146,6 +191,16 @@ namespace Lombiq.HipChatToTeams.Services
                                 //        DisplayName = userMessage.Sender.Name
                                 //    }
                                 //};
+
+                                if (messageBody.StartsWith("/code "))
+                                {
+                                    messageBody = $"<pre><code>{messageBody.Substring(6)}</code></pre>";
+                                }
+
+                                if (messageBody.StartsWith("/quote "))
+                                {
+                                    messageBody = $"<blockquote>{messageBody.Substring(7)}</blockquote>";
+                                }
 
                                 messageBody = $"{userMessage.Sender.Name}:<br>{messageBody}";
 
@@ -201,11 +256,12 @@ namespace Lombiq.HipChatToTeams.Services
                             if (batchSize != 1) messageBody += "<hr>";
 
                             batchedMessageBody += messageBody;
+                            importContext.ShortenNextMessage = false;
                         }
 
                         chatMessage.Body.Content = batchedMessageBody;
 
-                        await graphApi.CreateThread(
+                        await graphApi.CreateThreadAsync(
                             teamToImportInto.Id,
                             channel.Id,
                             new ChatThread
@@ -224,6 +280,11 @@ namespace Lombiq.HipChatToTeams.Services
                         {
                             TimestampedConsole.WriteLine($"{cursor.SkipMessages} messages imported into the channel.");
                         }
+
+                        messages = messages.Skip(batchSize);
+
+                        batchSize = configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage;
+                        importContext.MessageBatchSizeOverride = batchSize;
                     }
 
                     cursor.SkipRooms++;
@@ -252,6 +313,36 @@ namespace Lombiq.HipChatToTeams.Services
                     var waitSeconds = 10;
                     TimestampedConsole.WriteLine($"A request failed with the error Service Unavailable. Waiting {waitSeconds}s, then retrying.");
                     await Task.Delay(waitSeconds * 1000);
+
+                    await ImportChannelsFromRoomsAsync(importContext);
+                }
+                catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.RequestEntityTooLarge)
+                {
+                    if (importContext.MessageBatchSizeOverride == configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage &&
+                        importContext.MessageBatchSizeOverride > 5)
+                    {
+                        importContext.MessageBatchSizeOverride = 5;
+                    }
+                    else if (importContext.MessageBatchSizeOverride != 1)
+                    {
+                        importContext.MessageBatchSizeOverride = 1;
+                    }
+                    else
+                    {
+                        if (configuration.ShortenLongMessagesToCharacterCount > 0)
+                        {
+                            importContext.ShortenNextMessage = true;
+
+                            await ImportChannelsFromRoomsAsync(importContext);
+                            return;
+                        }
+                        else
+                        {
+                            throw new Exception($"The next message to import from the \"{room.Name}\" room is too large. You need to manually shorten it in the corresponding JSON file in the HipChat export package.");
+                        }
+                    }
+
+                    TimestampedConsole.WriteLine($"Importing {configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage} HipChat messages into a Teams message resulted in a message too large. Retrying with just {importContext.MessageBatchSizeOverride} messages.");
 
                     await ImportChannelsFromRoomsAsync(importContext);
                 }

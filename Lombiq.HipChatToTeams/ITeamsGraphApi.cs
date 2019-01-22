@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Lombiq.HipChatToTeams.Models;
@@ -14,13 +15,19 @@ namespace Lombiq.HipChatToTeams
         [Get("v1.0/me/joinedTeams")]
         Task<GraphApiResult<Team>> GetMyTeamsAsync();
 
+        [Post("beta/teams")]
+        Task<HttpResponseMessage> CreateTeamAsync([Body] Team team);
+
+        [Get("beta{location}")]
+        Task<TeamsAsyncOperation> GetAsyncOperation([Path] string location);
+
         [Get("v1.0/teams/{teamId}/channels")]
-        Task<GraphApiResult<Channel>> GetChannels([Path] string teamId);
+        Task<GraphApiResult<Channel>> GetChannelsAsync([Path] string teamId);
 
         [Post("v1.0/teams/{teamId}/channels")]
-        Task<Channel> CreateChannel([Path] string teamId, [Body] Channel channel);
+        Task<Channel> CreateChannelAsync([Path] string teamId, [Body] Channel channel);
 
         [Post("beta/teams/{teamId}/channels/{channelId}/chatThreads")]
-        Task <ChatThread> CreateThread([Path] string teamId, [Path] string channelId, [Body] ChatThread thread);
+        Task<ChatThread> CreateThreadAsync([Path] string teamId, [Path] string channelId, [Body] ChatThread thread);
     }
 }
