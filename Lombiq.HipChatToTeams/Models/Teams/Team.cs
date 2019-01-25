@@ -1,6 +1,8 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Text;
 
 namespace Lombiq.HipChatToTeams.Models.Teams
@@ -18,5 +20,19 @@ namespace Lombiq.HipChatToTeams.Models.Teams
 
         [JsonProperty("isArchived", DefaultValueHandling = DefaultValueHandling.Ignore)]
         public bool IsArchived { get; set; }
+
+        [JsonProperty("visibility")]
+        public TeamVisibilityType Visibility { get; set; } = TeamVisibilityType.Private;
+    }
+
+
+    [JsonConverter(typeof(StringEnumConverter))]
+    public enum TeamVisibilityType
+    {
+        [EnumMember(Value = "private")]
+        Private,
+
+        [EnumMember(Value = "public")]
+        Public
     }
 }
