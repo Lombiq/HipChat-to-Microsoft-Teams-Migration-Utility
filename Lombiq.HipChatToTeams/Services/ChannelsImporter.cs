@@ -317,7 +317,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                     await ImportChannelsFromRoomsAsync(importContext);
                 }
-                catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.ServiceUnavailable)
+                catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.ServiceUnavailable || ex.StatusCode == HttpStatusCode.InternalServerError)
                 {
                     var waitSeconds = 10;
                     TimestampedConsole.WriteLine($"A request failed with the error Service Unavailable. Waiting {waitSeconds}s, then retrying.");
