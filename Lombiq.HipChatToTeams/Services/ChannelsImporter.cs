@@ -24,7 +24,7 @@ namespace Lombiq.HipChatToTeams.Services
             var configuration = importContext.Configuration;
             var graphApi = importContext.GraphApi;
 
-            var teams = await graphApi.GetMyTeamsAsync();
+            var teams = (await graphApi.GetMyTeamsAsync()).Items.ToDictionary(team => team.DisplayName);
 
             if (!File.Exists(CursorPath))
             {
@@ -47,29 +47,27 @@ namespace Lombiq.HipChatToTeams.Services
 
             foreach (var room in rooms)
             {
-                if (!configuration.HipChatRoomsToTeams.TryGetValue(room.Name, out string teamNameToImportChannelInto))
+                if (!configuration.HipChatRoomsToTeams.TryGetValue(room.Name, out string teamNameToImportInto))
                 {
                     if (room.IsArchived && configuration.HipChatRoomsToTeams.ContainsKey("$Archived default"))
                     {
-                        teamNameToImportChannelInto = configuration.HipChatRoomsToTeams["$Archived default"];
+                        teamNameToImportInto = configuration.HipChatRoomsToTeams["$Archived default"];
                     }
                     else if (configuration.HipChatRoomsToTeams.ContainsKey("$Default"))
                     {
-                        teamNameToImportChannelInto = configuration.HipChatRoomsToTeams["$Default"];
+                        teamNameToImportInto = configuration.HipChatRoomsToTeams["$Default"];
                     }
                 }
 
-                var teamToImportInto = teams.Items.SingleOrDefault(team => team.DisplayName == teamNameToImportChannelInto);
-
-                if (teamToImportInto == null)
+                if (!teams.TryGetValue(teamNameToImportInto, out Team teamToImportInto))
                 {
-                    TimestampedConsole.WriteLine($"The team \"{teamNameToImportChannelInto}\" doesn't exist, so attempting to create it.");
+                    TimestampedConsole.WriteLine($"The team \"{teamNameToImportInto}\" doesn't exist, so attempting to create it.");
 
-                    using (var response = await graphApi.CreateTeamAsync(new Team { DisplayName = teamNameToImportChannelInto }))
+                    using (var response = await graphApi.CreateTeamAsync(new Team { DisplayName = teamNameToImportInto }))
                     {
                         if (!response.Headers.TryGetValues("Location", out var locations) || locations.Count() != 1)
                         {
-                            throw new Exception($"Attempted to create the \"{teamNameToImportChannelInto}\" team but the operation didn't return correctly. Try to create the team manually.");
+                            throw new Exception($"Attempted to create the \"{teamNameToImportInto}\" team but the operation didn't return correctly. Try to create the team manually.");
                         }
 
                         var location = locations.Single();
@@ -80,7 +78,7 @@ namespace Lombiq.HipChatToTeams.Services
                         {
                             if (tries > 10)
                             {
-                                throw new Exception($"Attempted to create the \"{teamNameToImportChannelInto}\" team but the operation didn't succeed after plenty of time. Try to create the team manually.");
+                                throw new Exception($"Attempted to create the \"{teamNameToImportInto}\" team but the operation didn't succeed after plenty of time. Try to create the team manually.");
                             }
 
                             // https://docs.microsoft.com/en-us/graph/api/resources/teamsasyncoperation?view=graph-rest-beta
@@ -95,11 +93,13 @@ namespace Lombiq.HipChatToTeams.Services
                         teamToImportInto = new Team
                         {
                             Id = operation.TargetResourceId,
-                            DisplayName = teamNameToImportChannelInto
+                            DisplayName = teamNameToImportInto
                         };
+
+                        teams[teamNameToImportInto] = teamToImportInto;
                     }
 
-                    TimestampedConsole.WriteLine($"Created the \"{teamNameToImportChannelInto}\" team.");
+                    TimestampedConsole.WriteLine($"Created the \"{teamNameToImportInto}\" team.");
                 }
 
                 try
