@@ -32,6 +32,7 @@ namespace Lombiq.HipChatToTeams.Services
             }
 
             var cursor = JsonConvert.DeserializeObject<ImportCursor>(await File.ReadAllTextAsync(CursorPath));
+            if (cursor == null) cursor = new ImportCursor();
 
             var rooms = JsonConvert
                 .DeserializeObject<RoomContainer[]>(await File.ReadAllTextAsync(Path.Combine(configuration.ExportFolderPath, "rooms.json")))
