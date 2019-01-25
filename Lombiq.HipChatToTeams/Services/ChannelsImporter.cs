@@ -30,6 +30,7 @@ namespace Lombiq.HipChatToTeams.Services
             {
                 await UpdateCursor(new ImportCursor());
             }
+
             var cursor = JsonConvert.DeserializeObject<ImportCursor>(await File.ReadAllTextAsync(CursorPath));
 
             var rooms = JsonConvert
@@ -47,7 +48,14 @@ namespace Lombiq.HipChatToTeams.Services
             {
                 if (!configuration.HipChatRoomsToTeams.TryGetValue(room.Name, out string teamNameToImportChannelInto))
                 {
-                    teamNameToImportChannelInto = configuration.HipChatRoomsToTeams["$Default"];
+                    if (room.IsArchived && configuration.HipChatRoomsToTeams.ContainsKey("$Archived default"))
+                    {
+                        teamNameToImportChannelInto = configuration.HipChatRoomsToTeams["$Archived default"];
+                    }
+                    else if (configuration.HipChatRoomsToTeams.ContainsKey("$Default"))
+                    {
+                        teamNameToImportChannelInto = configuration.HipChatRoomsToTeams["$Default"];
+                    }
                 }
 
                 var teamToImportInto = teams.Items.SingleOrDefault(team => team.DisplayName == teamNameToImportChannelInto);
