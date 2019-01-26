@@ -1,10 +1,11 @@
-﻿using System;
+﻿using Lombiq.HipChatToTeams.Services;
+using Microsoft.Graph;
+using Newtonsoft.Json;
+using RestEase;
+using System;
 using System.IO;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
-using Lombiq.HipChatToTeams.Services;
-using Newtonsoft.Json;
-using RestEase;
 
 namespace Lombiq.HipChatToTeams
 {
@@ -16,7 +17,7 @@ namespace Lombiq.HipChatToTeams
             {
                 try
                 {
-                    var configuration = JsonConvert.DeserializeObject<Configuration>(await File.ReadAllTextAsync("AppSettings.json"));
+                    var configuration = JsonConvert.DeserializeObject<Configuration>(await System.IO.File.ReadAllTextAsync("AppSettings.json"));
 
                     if (string.IsNullOrEmpty(configuration.AuthorizationToken))
                     {
@@ -35,7 +36,15 @@ namespace Lombiq.HipChatToTeams
                             {
                                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", configuration.AuthorizationToken);
                                 return Task.CompletedTask;
-                            })
+                            }),
+                        GraphServiceClient = new GraphServiceClient(new DelegateAuthenticationProvider((requestMessage) =>
+                        {
+                            requestMessage
+                                .Headers
+                                .Authorization = new AuthenticationHeaderValue("bearer", configuration.AuthorizationToken);
+
+                            return Task.FromResult(0);
+                        }))
                     };
 
                     TimestampedConsole.WriteLine("Importing channels from rooms...");

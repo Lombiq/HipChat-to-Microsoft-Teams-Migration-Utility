@@ -4,9 +4,11 @@ using Lombiq.HipChatToTeams.Models.Teams;
 using Newtonsoft.Json;
 using RestEase;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
 namespace Lombiq.HipChatToTeams.Services
@@ -111,7 +113,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                     // This can be used to test a single room again and again, without having to delete anything.
                     //channelName += new Random().Next();
-                    //room.Id = 411001;
+                    //room.Id = 4726816;
 
                     Console.WriteLine("======================");
 
@@ -177,6 +179,8 @@ namespace Lombiq.HipChatToTeams.Services
                             CreatedDateTime = messageBatch.First().Timestamp
                         };
 
+                        var attachments = new List<ChatMessageAttachment>();
+
                         var batchedMessageBody = string.Empty;
 
                         foreach (var message in messageBatch)
@@ -213,39 +217,21 @@ namespace Lombiq.HipChatToTeams.Services
 
                                 messageBody = $"{userMessage.Sender.Name}:<br>{messageBody}";
 
-                                // Attachments don't work, see: https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues/2
-                                //if (userMessage.Attachment != null)
-                                //{
-                                //    var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
-                                //    var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
+                                if (configuration.UploadAttachments && userMessage.Attachment != null)
+                                {
+                                    var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
+                                    var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
 
-                                //    // The content type is not yet used because attaching files doesn't take effect any
-                                //    // way, and posting bigger files won't work either.
-                                //    var contentType = MimeTypeMap.List.MimeTypeMap
-                                //        .GetMimeType(Path.GetExtension(attachmentPath))
-                                //        .FirstOrDefault();
-
-                                //    if (contentType == null ||
-                                //            (!contentType.StartsWith("image/") &&
-                                //            !contentType.StartsWith("video/") &&
-                                //            !contentType.StartsWith("audio/") &&
-                                //            !contentType.StartsWith("application/vnd.microsoft.card.")))
-                                //    {
-                                //        contentType = "file";
-                                //    }
-
-                                //    chatMessage.Attachments = new[]
-                                //    {
-                                //        new ChatMessageAttachment
-                                //        {
-                                //            // This could work, but doesn't work either:
-                                //            //ContentUrl = $"data:{contentType};base64," + Convert.ToBase64String(await File.ReadAllBytesAsync(attachmentPath)),
-                                //            //ContentType = contentType
-                                //            ContentUrl = userMessage.Attachment.Url,
-                                //            ContentType = "reference"
-                                //        }
-                                //    };
-                                //}
+                                    // Attachments are not shown under the messages but at least can be uploaded.
+                                    if (File.Exists(attachmentPath))
+                                    {
+                                        attachments.Add(new ChatMessageAttachment
+                                        {
+                                            ContentUrl = await AttachmentUploader.UploadFile(attachmentPath, teamToImportInto, channel, importContext),
+                                            ContentType = "reference"
+                                        }); 
+                                    }
+                                }
                             }
                             else
                             {
@@ -269,6 +255,7 @@ namespace Lombiq.HipChatToTeams.Services
                         }
 
                         chatMessage.Body.Content = batchedMessageBody;
+                        chatMessage.Attachments = attachments;
 
                         await graphApi.CreateThreadAsync(
                             teamToImportInto.Id,
