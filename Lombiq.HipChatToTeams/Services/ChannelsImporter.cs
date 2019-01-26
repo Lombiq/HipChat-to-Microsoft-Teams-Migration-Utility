@@ -261,7 +261,7 @@ namespace Lombiq.HipChatToTeams.Services
                                 messageBody = $"{((NotificationMessage)message).Sender}:<br>{messageBody}";
                             }
 
-                            messageBody = message.Timestamp.ToString() + " " + messageBody;
+                            messageBody = message.Timestamp.ToString() + " UTC " + messageBody;
                             if (batchSize != 1) messageBody += "<hr>";
 
                             batchedMessageBody += messageBody;
