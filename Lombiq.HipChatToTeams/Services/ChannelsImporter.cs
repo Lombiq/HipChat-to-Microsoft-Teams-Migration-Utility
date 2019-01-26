@@ -8,7 +8,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Threading.Tasks;
 
 namespace Lombiq.HipChatToTeams.Services
@@ -222,14 +221,31 @@ namespace Lombiq.HipChatToTeams.Services
                                     var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
                                     var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
 
-                                    // Attachments are not shown under the messages but at least can be uploaded.
+                                    // Attachments can't be embedded into messages (because they won't get attached to
+                                    // them for some reason) but the files can be linked to.
                                     if (File.Exists(attachmentPath))
                                     {
+                                        var fileUrl = await AttachmentUploader.UploadFile(attachmentPath, teamToImportInto, channel, importContext);
+
+                                        var contentType = MimeTypeMap.List.MimeTypeMap
+                                            .GetMimeType(Path.GetExtension(attachmentPath))
+                                            .FirstOrDefault();
+
+                                        if (contentType.StartsWith("image/"))
+                                        {
+                                            messageBody += $"<br><img src=\"{fileUrl}\">";
+                                        }
+                                        else
+                                        {
+                                            messageBody += $"<br><a href=\"{fileUrl}\">Attachment</a>";
+                                        }
+
                                         attachments.Add(new ChatMessageAttachment
                                         {
-                                            ContentUrl = await AttachmentUploader.UploadFile(attachmentPath, teamToImportInto, channel, importContext),
-                                            ContentType = "reference"
-                                        }); 
+                                            ContentUrl = fileUrl,
+                                            ContentType = "reference",
+                                            Name = Path.GetFileName(fileUrl)
+                                        });
                                     }
                                 }
                             }
