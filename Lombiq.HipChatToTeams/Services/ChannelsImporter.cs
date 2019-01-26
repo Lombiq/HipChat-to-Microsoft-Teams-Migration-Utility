@@ -18,13 +18,17 @@ namespace Lombiq.HipChatToTeams.Services
         private const int DefaultThrottlingCooldownMinutes = 10;
         private static int _throttlingCooldownMinutes = DefaultThrottlingCooldownMinutes;
 
+        private static char[] _unsupportedChannelNameCharacters = new[]
+        {
+            '~', '#', '%', '&', '*', '{', '}', '+', '/', '\\', ':', '<', '>', '?', '|', '\'', '"', '.'
+        };
+        private static string _unsupportedChannelNameCharactersString = string.Join(", ", _unsupportedChannelNameCharacters);
+
 
         public static async Task ImportChannelsFromRoomsAsync(ImportContext importContext)
         {
             var configuration = importContext.Configuration;
             var graphApi = importContext.GraphApi;
-
-            var teams = (await graphApi.GetMyTeamsAsync()).Items.ToDictionary(team => team.DisplayName);
 
             if (!File.Exists(CursorPath))
             {
@@ -39,11 +43,7 @@ namespace Lombiq.HipChatToTeams.Services
                 .Select(roomContainer => roomContainer.Room)
                 .Skip(cursor.SkipRooms);
 
-            var unsupportedChannelNameCharacters = new[]
-            {
-                '~', '#', '%', '&', '*', '{', '}', '+', '/', '\\', ':', '<', '>', '?', '|', '\'', '"', '.'
-            };
-            var unsupportedChannelNameCharactersString = string.Join(", ", unsupportedChannelNameCharacters);
+            var teams = (await graphApi.GetMyTeamsAsync()).Items.ToDictionary(team => team.DisplayName);
 
             foreach (var room in rooms)
             {
@@ -117,12 +117,12 @@ namespace Lombiq.HipChatToTeams.Services
 
                     TimestampedConsole.WriteLine($"Starting processing the \"{room.Name}\" room.");
 
-                    if (unsupportedChannelNameCharacters.Any(character => channelName.Contains(character)))
+                    if (_unsupportedChannelNameCharacters.Any(character => channelName.Contains(character)))
                     {
-                        channelName = string.Join("", channelName.Split(unsupportedChannelNameCharacters, StringSplitOptions.RemoveEmptyEntries));
+                        channelName = string.Join("", channelName.Split(_unsupportedChannelNameCharacters, StringSplitOptions.RemoveEmptyEntries));
                         TimestampedConsole.WriteLine(
                             $"* The \"{room.Name}\" room's name contains at least one character not allowed in channel names " +
-                            $"({unsupportedChannelNameCharactersString})). Offending characters were removed: \"{channelName}\".");
+                            $"({_unsupportedChannelNameCharactersString})). Offending characters were removed: \"{channelName}\".");
                     }
 
                     Channel channel = (await graphApi.GetChannelsAsync(teamToImportInto.Id))
