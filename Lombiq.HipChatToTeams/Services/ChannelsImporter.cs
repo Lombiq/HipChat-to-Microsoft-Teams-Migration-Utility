@@ -1,13 +1,13 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
-using Lombiq.HipChatToTeams.Models;
+﻿using Lombiq.HipChatToTeams.Models;
 using Lombiq.HipChatToTeams.Models.HipChat;
 using Lombiq.HipChatToTeams.Models.Teams;
 using Newtonsoft.Json;
 using RestEase;
+using System;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Threading.Tasks;
 
 namespace Lombiq.HipChatToTeams.Services
 {
@@ -18,11 +18,11 @@ namespace Lombiq.HipChatToTeams.Services
         private const int DefaultThrottlingCooldownMinutes = 10;
         private static int _throttlingCooldownMinutes = DefaultThrottlingCooldownMinutes;
 
-        private static char[] _unsupportedChannelNameCharacters = new[]
+        private static readonly char[] _unsupportedChannelNameCharacters = new[]
         {
             '~', '#', '%', '&', '*', '{', '}', '+', '/', '\\', ':', '<', '>', '?', '|', '\'', '"', '.'
         };
-        private static string _unsupportedChannelNameCharactersString = string.Join(", ", _unsupportedChannelNameCharacters);
+        private static readonly string _unsupportedChannelNameCharactersString = string.Join(", ", _unsupportedChannelNameCharacters);
 
 
         public static async Task ImportChannelsFromRoomsAsync(ImportContext importContext)
@@ -185,7 +185,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                             if (importContext.ShortenNextMessage)
                             {
-                                messageBody = 
+                                messageBody =
                                     messageBody.Substring(0, configuration.ShortenLongMessagesToCharacterCount) + "...";
                             }
 
@@ -296,6 +296,7 @@ namespace Lombiq.HipChatToTeams.Services
                         importContext.MessageBatchSizeOverride = batchSize;
                     }
 
+
                     cursor.SkipRooms++;
                     cursor.SkipMessages = 0;
                     await UpdateCursor(cursor);
@@ -316,6 +317,7 @@ namespace Lombiq.HipChatToTeams.Services
                     _throttlingCooldownMinutes *= 2;
 
                     await ImportChannelsFromRoomsAsync(importContext);
+                    return;
                 }
                 catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.ServiceUnavailable || ex.StatusCode == HttpStatusCode.InternalServerError)
                 {
@@ -324,6 +326,7 @@ namespace Lombiq.HipChatToTeams.Services
                     await Task.Delay(waitSeconds * 1000);
 
                     await ImportChannelsFromRoomsAsync(importContext);
+                    return;
                 }
                 catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.RequestEntityTooLarge)
                 {
@@ -354,6 +357,7 @@ namespace Lombiq.HipChatToTeams.Services
                     TimestampedConsole.WriteLine($"Importing {configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage} HipChat messages into a Teams message resulted in a message too large. Retrying with just {importContext.MessageBatchSizeOverride} messages.");
 
                     await ImportChannelsFromRoomsAsync(importContext);
+                    return;
                 }
                 catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
                 {
