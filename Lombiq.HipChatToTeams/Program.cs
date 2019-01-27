@@ -52,8 +52,8 @@ namespace Lombiq.HipChatToTeams
                     TimestampedConsole.WriteLine("Channels imported.");
                 }
                 catch (Exception ex) 
-                    when (((ApiException)ex).StatusCode == System.Net.HttpStatusCode.Unauthorized ||
-                    ex is ServiceException && ex.Message.Contains("Access token has expired."))
+                    when (ex is ApiException apiException && apiException.StatusCode == System.Net.HttpStatusCode.Unauthorized ||
+                    ex.InnerException is ServiceException && ex.InnerException.Message.Contains("Access token has expired."))
                 {
                     TimestampedConsole.WriteLine("Authorizing with the Graph API failed. The authorization token configured may be expired or doesn't have all the required permissions.");
                 }
