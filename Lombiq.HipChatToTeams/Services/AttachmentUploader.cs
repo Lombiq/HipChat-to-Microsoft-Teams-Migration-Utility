@@ -69,7 +69,7 @@ namespace Lombiq.HipChatToTeams.Services
                 await Task.Delay(waitMinutes * 60000);
                 TimestampedConsole.WriteLine($"Retrying upload.");
 
-                return await UploadFile(attachmentPath, team, channel, importContext, ++tryCount);
+                return await UploadFile(attachmentPath, team, channel, importContext, 0);
             }
         }
     }
