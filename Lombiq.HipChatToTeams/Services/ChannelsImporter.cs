@@ -46,6 +46,60 @@ namespace Lombiq.HipChatToTeams.Services
 
             var teams = (await graphApi.GetMyTeamsAsync()).Items.ToDictionary(team => team.DisplayName);
 
+            // Creating teams in advance so there's less waiting on the provisioning of the corresponding SharePoint
+            // sites.
+            Console.WriteLine("======================");
+            TimestampedConsole.WriteLine("Creating teams that don't exist.");
+
+            var teamNamesToUse = configuration.HipChatRoomsToTeams.Values;
+
+            foreach (var teamName in teamNamesToUse.Distinct())
+            {
+                if (!teams.ContainsKey(teamName))
+                {
+                    TimestampedConsole.WriteLine($"The team \"{teamName}\" doesn't exist, so attempting to create it.");
+
+                    using (var response = await graphApi.CreateTeamAsync(new Team { DisplayName = teamName }))
+                    {
+                        if (!response.Headers.TryGetValues("Location", out var locations) || locations.Count() != 1)
+                        {
+                            throw new Exception($"Attempted to create the \"{teamName}\" team but the operation didn't return correctly. Try to create the team manually.");
+                        }
+
+                        var location = locations.Single();
+                        var operation = await graphApi.GetAsyncOperation(location);
+
+                        var tries = 0;
+                        while (operation.Status != "succeeded")
+                        {
+                            if (tries > 10)
+                            {
+                                throw new Exception($"Attempted to create the \"{teamName}\" team but the operation didn't succeed after plenty of time. Try to create the team manually.");
+                            }
+
+                            // https://docs.microsoft.com/en-us/graph/api/resources/teamsasyncoperation?view=graph-rest-beta
+                            // says to wait >30s.
+                            await Task.Delay(31000);
+
+                            operation = await graphApi.GetAsyncOperation(location);
+
+                            tries++;
+                        }
+
+                        teams[teamName] = new Team
+                        {
+                            Id = operation.TargetResourceId,
+                            DisplayName = teamName
+                        };
+                    }
+
+                    TimestampedConsole.WriteLine($"Created the \"{teamName}\" team.");
+                }
+            }
+
+            TimestampedConsole.WriteLine("Created all new teams.");
+            Console.WriteLine("======================");
+
             foreach (var room in rooms)
             {
                 if (!configuration.HipChatRoomsToTeams.TryGetValue(room.Name, out string teamNameToImportInto))
@@ -60,48 +114,7 @@ namespace Lombiq.HipChatToTeams.Services
                     }
                 }
 
-                if (!teams.TryGetValue(teamNameToImportInto, out Team teamToImportInto))
-                {
-                    TimestampedConsole.WriteLine($"The team \"{teamNameToImportInto}\" doesn't exist, so attempting to create it.");
-
-                    using (var response = await graphApi.CreateTeamAsync(new Team { DisplayName = teamNameToImportInto }))
-                    {
-                        if (!response.Headers.TryGetValues("Location", out var locations) || locations.Count() != 1)
-                        {
-                            throw new Exception($"Attempted to create the \"{teamNameToImportInto}\" team but the operation didn't return correctly. Try to create the team manually.");
-                        }
-
-                        var location = locations.Single();
-                        var operation = await graphApi.GetAsyncOperation(location);
-
-                        var tries = 0;
-                        while (operation.Status != "succeeded")
-                        {
-                            if (tries > 10)
-                            {
-                                throw new Exception($"Attempted to create the \"{teamNameToImportInto}\" team but the operation didn't succeed after plenty of time. Try to create the team manually.");
-                            }
-
-                            // https://docs.microsoft.com/en-us/graph/api/resources/teamsasyncoperation?view=graph-rest-beta
-                            // says to wait >30s.
-                            await Task.Delay(31000);
-
-                            operation = await graphApi.GetAsyncOperation(location);
-
-                            tries++;
-                        }
-
-                        teamToImportInto = new Team
-                        {
-                            Id = operation.TargetResourceId,
-                            DisplayName = teamNameToImportInto
-                        };
-
-                        teams[teamNameToImportInto] = teamToImportInto;
-                    }
-
-                    TimestampedConsole.WriteLine($"Created the \"{teamNameToImportInto}\" team.");
-                }
+                var teamToImportInto = teams[teamNameToImportInto];
 
                 try
                 {
