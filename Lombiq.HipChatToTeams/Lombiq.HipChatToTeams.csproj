@@ -7,7 +7,7 @@
     <PackageProjectUrl>https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility</PackageProjectUrl>
     <Product>Lombiq HipChat to Microsoft Teams Migration Utility</Product>
     <PackageLicenseUrl>https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/blob/dev/Licence.md</PackageLicenseUrl>
-    <Version>0.3.0-beta</Version>
+    <Version>0.4.0-beta</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -21,6 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.Graph" Version="1.12.0" />
     <PackageReference Include="MimeTypeMap.List" Version="2.0.1" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.1" />
     <PackageReference Include="RestEase" Version="1.4.7" />

@@ -1,13 +1,14 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Threading.Tasks;
-using Lombiq.HipChatToTeams.Models;
+﻿using Lombiq.HipChatToTeams.Models;
 using Lombiq.HipChatToTeams.Models.HipChat;
 using Lombiq.HipChatToTeams.Models.Teams;
 using Newtonsoft.Json;
 using RestEase;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Threading.Tasks;
 
 namespace Lombiq.HipChatToTeams.Services
 {
@@ -18,49 +19,51 @@ namespace Lombiq.HipChatToTeams.Services
         private const int DefaultThrottlingCooldownMinutes = 10;
         private static int _throttlingCooldownMinutes = DefaultThrottlingCooldownMinutes;
 
+        private static readonly char[] _unsupportedChannelNameCharacters = new[]
+        {
+            '~', '#', '%', '&', '*', '{', '}', '+', '/', '\\', ':', '<', '>', '?', '|', '\'', '"', '.'
+        };
+        private static readonly string _unsupportedChannelNameCharactersString = string.Join(", ", _unsupportedChannelNameCharacters);
+
 
         public static async Task ImportChannelsFromRoomsAsync(ImportContext importContext)
         {
             var configuration = importContext.Configuration;
             var graphApi = importContext.GraphApi;
 
-            var teams = await graphApi.GetMyTeamsAsync();
-
             if (!File.Exists(CursorPath))
             {
                 await UpdateCursor(new ImportCursor());
             }
+
             var cursor = JsonConvert.DeserializeObject<ImportCursor>(await File.ReadAllTextAsync(CursorPath));
+            if (cursor == null) cursor = new ImportCursor();
 
             var rooms = JsonConvert
                 .DeserializeObject<RoomContainer[]>(await File.ReadAllTextAsync(Path.Combine(configuration.ExportFolderPath, "rooms.json")))
                 .Select(roomContainer => roomContainer.Room)
                 .Skip(cursor.SkipRooms);
 
-            var unsupportedChannelNameCharacters = new[]
+            var teams = (await graphApi.GetMyTeamsAsync()).Items.ToDictionary(team => team.DisplayName);
+
+            // Creating teams in advance so there's less waiting on the provisioning of the corresponding SharePoint
+            // sites.
+            Console.WriteLine("======================");
+            TimestampedConsole.WriteLine("Creating teams that don't exist.");
+
+            var teamNamesToUse = configuration.HipChatRoomsToTeams.Values;
+
+            foreach (var teamName in teamNamesToUse.Distinct())
             {
-                '~', '#', '%', '&', '*', '{', '}', '+', '/', '\\', ':', '<', '>', '?', '|', '\'', '"', '.'
-            };
-            var unsupportedChannelNameCharactersString = string.Join(", ", unsupportedChannelNameCharacters);
-
-            foreach (var room in rooms)
-            {
-                if (!configuration.HipChatRoomsToTeams.TryGetValue(room.Name, out string teamNameToImportChannelInto))
+                if (!teams.ContainsKey(teamName))
                 {
-                    teamNameToImportChannelInto = configuration.HipChatRoomsToTeams["$Default"];
-                }
+                    TimestampedConsole.WriteLine($"The team \"{teamName}\" doesn't exist, so attempting to create it.");
 
-                var teamToImportInto = teams.Items.SingleOrDefault(team => team.DisplayName == teamNameToImportChannelInto);
-
-                if (teamToImportInto == null)
-                {
-                    TimestampedConsole.WriteLine($"The team \"{teamNameToImportChannelInto}\" doesn't exist, so attempting to create it.");
-
-                    using (var response = await graphApi.CreateTeamAsync(new Team { DisplayName = teamNameToImportChannelInto }))
+                    using (var response = await graphApi.CreateTeamAsync(new Team { DisplayName = teamName }))
                     {
                         if (!response.Headers.TryGetValues("Location", out var locations) || locations.Count() != 1)
                         {
-                            throw new Exception($"Attempted to create the \"{teamNameToImportChannelInto}\" team but the operation didn't return correctly. Try to create the team manually.");
+                            throw new Exception($"Attempted to create the \"{teamName}\" team but the operation didn't return correctly. Try to create the team manually.");
                         }
 
                         var location = locations.Single();
@@ -71,7 +74,7 @@ namespace Lombiq.HipChatToTeams.Services
                         {
                             if (tries > 10)
                             {
-                                throw new Exception($"Attempted to create the \"{teamNameToImportChannelInto}\" team but the operation didn't succeed after plenty of time. Try to create the team manually.");
+                                throw new Exception($"Attempted to create the \"{teamName}\" team but the operation didn't succeed after plenty of time. Try to create the team manually.");
                             }
 
                             // https://docs.microsoft.com/en-us/graph/api/resources/teamsasyncoperation?view=graph-rest-beta
@@ -83,15 +86,35 @@ namespace Lombiq.HipChatToTeams.Services
                             tries++;
                         }
 
-                        teamToImportInto = new Team
+                        teams[teamName] = new Team
                         {
                             Id = operation.TargetResourceId,
-                            DisplayName = teamNameToImportChannelInto
+                            DisplayName = teamName
                         };
                     }
 
-                    TimestampedConsole.WriteLine($"Created the \"{teamNameToImportChannelInto}\" team.");
+                    TimestampedConsole.WriteLine($"Created the \"{teamName}\" team.");
                 }
+            }
+
+            TimestampedConsole.WriteLine("Created all new teams.");
+            Console.WriteLine("======================");
+
+            foreach (var room in rooms)
+            {
+                if (!configuration.HipChatRoomsToTeams.TryGetValue(room.Name, out string teamNameToImportInto))
+                {
+                    if (room.IsArchived && configuration.HipChatRoomsToTeams.ContainsKey("$Archived default"))
+                    {
+                        teamNameToImportInto = configuration.HipChatRoomsToTeams["$Archived default"];
+                    }
+                    else if (configuration.HipChatRoomsToTeams.ContainsKey("$Default"))
+                    {
+                        teamNameToImportInto = configuration.HipChatRoomsToTeams["$Default"];
+                    }
+                }
+
+                var teamToImportInto = teams[teamNameToImportInto];
 
                 try
                 {
@@ -102,18 +125,18 @@ namespace Lombiq.HipChatToTeams.Services
 
                     // This can be used to test a single room again and again, without having to delete anything.
                     //channelName += new Random().Next();
-                    //room.Id = 411001;
+                    //room.Id = 4726816;
 
                     Console.WriteLine("======================");
 
                     TimestampedConsole.WriteLine($"Starting processing the \"{room.Name}\" room.");
 
-                    if (unsupportedChannelNameCharacters.Any(character => channelName.Contains(character)))
+                    if (_unsupportedChannelNameCharacters.Any(character => channelName.Contains(character)))
                     {
-                        channelName = string.Join("", channelName.Split(unsupportedChannelNameCharacters, StringSplitOptions.RemoveEmptyEntries));
+                        channelName = string.Join("", channelName.Split(_unsupportedChannelNameCharacters, StringSplitOptions.RemoveEmptyEntries));
                         TimestampedConsole.WriteLine(
                             $"* The \"{room.Name}\" room's name contains at least one character not allowed in channel names " +
-                            $"({unsupportedChannelNameCharactersString})). Offending characters were removed: \"{channelName}\".");
+                            $"({_unsupportedChannelNameCharactersString})). Offending characters were removed: \"{channelName}\".");
                     }
 
                     Channel channel = (await graphApi.GetChannelsAsync(teamToImportInto.Id))
@@ -168,6 +191,8 @@ namespace Lombiq.HipChatToTeams.Services
                             CreatedDateTime = messageBatch.First().Timestamp
                         };
 
+                        var attachments = new List<ChatMessageAttachment>();
+
                         var batchedMessageBody = string.Empty;
 
                         foreach (var message in messageBatch)
@@ -176,7 +201,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                             if (importContext.ShortenNextMessage)
                             {
-                                messageBody = 
+                                messageBody =
                                     messageBody.Substring(0, configuration.ShortenLongMessagesToCharacterCount) + "...";
                             }
 
@@ -204,39 +229,38 @@ namespace Lombiq.HipChatToTeams.Services
 
                                 messageBody = $"{userMessage.Sender.Name}:<br>{messageBody}";
 
-                                // Attachments don't work, see: https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/issues/2
-                                //if (userMessage.Attachment != null)
-                                //{
-                                //    var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
-                                //    var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
+                                if (configuration.UploadAttachments && userMessage.Attachment != null)
+                                {
+                                    var attachmentPathSegments = userMessage.Attachment.Path.Split(new[] { '/' });
+                                    var attachmentPath = Path.Combine(roomFolderPath, "files", attachmentPathSegments[0], attachmentPathSegments[1]);
 
-                                //    // The content type is not yet used because attaching files doesn't take effect any
-                                //    // way, and posting bigger files won't work either.
-                                //    var contentType = MimeTypeMap.List.MimeTypeMap
-                                //        .GetMimeType(Path.GetExtension(attachmentPath))
-                                //        .FirstOrDefault();
+                                    // Attachments can't be embedded into messages (because they won't get attached to
+                                    // them for some reason) but the files can be linked to.
+                                    if (File.Exists(attachmentPath))
+                                    {
+                                        var fileUrl = await AttachmentUploader.UploadFile(attachmentPath, teamToImportInto, channel, importContext);
 
-                                //    if (contentType == null ||
-                                //            (!contentType.StartsWith("image/") &&
-                                //            !contentType.StartsWith("video/") &&
-                                //            !contentType.StartsWith("audio/") &&
-                                //            !contentType.StartsWith("application/vnd.microsoft.card.")))
-                                //    {
-                                //        contentType = "file";
-                                //    }
+                                        var contentType = MimeTypeMap.List.MimeTypeMap
+                                            .GetMimeType(Path.GetExtension(attachmentPath))
+                                            .FirstOrDefault();
 
-                                //    chatMessage.Attachments = new[]
-                                //    {
-                                //        new ChatMessageAttachment
-                                //        {
-                                //            // This could work, but doesn't work either:
-                                //            //ContentUrl = $"data:{contentType};base64," + Convert.ToBase64String(await File.ReadAllBytesAsync(attachmentPath)),
-                                //            //ContentType = contentType
-                                //            ContentUrl = userMessage.Attachment.Url,
-                                //            ContentType = "reference"
-                                //        }
-                                //    };
-                                //}
+                                        if (contentType.StartsWith("image/"))
+                                        {
+                                            messageBody += $"<br><img src=\"{fileUrl}\">";
+                                        }
+                                        else
+                                        {
+                                            messageBody += $"<br><a href=\"{fileUrl}\">Attachment</a>";
+                                        }
+
+                                        attachments.Add(new ChatMessageAttachment
+                                        {
+                                            ContentUrl = fileUrl,
+                                            ContentType = "reference",
+                                            Name = Path.GetFileName(fileUrl)
+                                        });
+                                    }
+                                }
                             }
                             else
                             {
@@ -252,7 +276,7 @@ namespace Lombiq.HipChatToTeams.Services
                                 messageBody = $"{((NotificationMessage)message).Sender}:<br>{messageBody}";
                             }
 
-                            messageBody = message.Timestamp.ToString() + " " + messageBody;
+                            messageBody = message.Timestamp.ToString() + " UTC " + messageBody;
                             if (batchSize != 1) messageBody += "<hr>";
 
                             batchedMessageBody += messageBody;
@@ -260,6 +284,7 @@ namespace Lombiq.HipChatToTeams.Services
                         }
 
                         chatMessage.Body.Content = batchedMessageBody;
+                        chatMessage.Attachments = attachments;
 
                         await graphApi.CreateThreadAsync(
                             teamToImportInto.Id,
@@ -287,6 +312,7 @@ namespace Lombiq.HipChatToTeams.Services
                         importContext.MessageBatchSizeOverride = batchSize;
                     }
 
+
                     cursor.SkipRooms++;
                     cursor.SkipMessages = 0;
                     await UpdateCursor(cursor);
@@ -307,14 +333,16 @@ namespace Lombiq.HipChatToTeams.Services
                     _throttlingCooldownMinutes *= 2;
 
                     await ImportChannelsFromRoomsAsync(importContext);
+                    return;
                 }
-                catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.ServiceUnavailable)
+                catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.ServiceUnavailable || ex.StatusCode == HttpStatusCode.InternalServerError)
                 {
                     var waitSeconds = 10;
                     TimestampedConsole.WriteLine($"A request failed with the error Service Unavailable. Waiting {waitSeconds}s, then retrying.");
                     await Task.Delay(waitSeconds * 1000);
 
                     await ImportChannelsFromRoomsAsync(importContext);
+                    return;
                 }
                 catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.RequestEntityTooLarge)
                 {
@@ -345,6 +373,7 @@ namespace Lombiq.HipChatToTeams.Services
                     TimestampedConsole.WriteLine($"Importing {configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage} HipChat messages into a Teams message resulted in a message too large. Retrying with just {importContext.MessageBatchSizeOverride} messages.");
 
                     await ImportChannelsFromRoomsAsync(importContext);
+                    return;
                 }
                 catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
                 {

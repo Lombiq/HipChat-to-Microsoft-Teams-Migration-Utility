@@ -10,6 +10,8 @@ namespace Lombiq.HipChatToTeams.Models.HipChat
         [JsonProperty("created")]
         public DateTime CreatedLocal { get; set; }
         public int Id { get; set; }
+
+        [JsonProperty("is_archived")]
         public bool IsArchived { get; set; }
         public string Name { get; set; }
         public string Topic { get; set; }
