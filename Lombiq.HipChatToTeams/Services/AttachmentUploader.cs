@@ -2,7 +2,6 @@
 using Microsoft.Graph;
 using System;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using IO = System.IO;
 
@@ -22,7 +21,8 @@ namespace Lombiq.HipChatToTeams.Services
             {
                 using (var stream = IO.File.OpenRead(attachmentPath))
                 {
-                    if (fileSizeBytes / 1024 / 1024 > 3.6) // 4MB is the maximum for a simple upload, staying safe with 3.6.
+                    // 4MB is the maximum for a simple upload, staying safe with 3.6.
+                    if (fileSizeBytes / 1024 / 1024 > 3.6)
                     {
                         var session = await itemRequest.CreateUploadSession().Request().PostAsync();
                         var maxChunkSize = 320 * 4 * 1024;
@@ -44,14 +44,17 @@ namespace Lombiq.HipChatToTeams.Services
                         }
 
                         // Retry if upload failed.
-                        if (itemResult == null && tryCount < 5)
+                        if (itemResult == null)
                         {
-                            TimestampedConsole.WriteLine($"Uploading the large attachment \"{attachmentPath}\" failed. Retrying.");
-                            return await UploadFile(attachmentPath, team, channel, importContext, ++tryCount);
-                        }
-                        else
-                        {
-                            throw new Exception($"The attachment \"{attachmentPath}\" couldn't be uploaded into the \"{channel.DisplayName}\" channel (\"{team.DisplayName}\" team) because upload failed repeatedly. You can try again as this might be just a temporary error. If the issue isn't resolved then delete the file so it's not uploaded.");
+                            if (tryCount < 5)
+                            {
+                                TimestampedConsole.WriteLine($"Uploading the large attachment \"{attachmentPath}\" failed. Retrying.");
+                                return await UploadFile(attachmentPath, team, channel, importContext, ++tryCount);
+                            }
+                            else
+                            {
+                                throw new Exception($"The attachment \"{attachmentPath}\" couldn't be uploaded into the \"{channel.DisplayName}\" channel (\"{team.DisplayName}\" team) because upload failed repeatedly. You can try again as this might be just a temporary error. If the issue isn't resolved then delete the file so it's not uploaded.");
+                            }
                         }
                     }
                     else
