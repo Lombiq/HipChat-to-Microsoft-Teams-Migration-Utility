@@ -243,13 +243,22 @@ namespace Lombiq.HipChatToTeams.Services
                                     {
                                         var fileUrl = await AttachmentUploader.UploadFile(attachmentPath, teamToImportInto, channel, importContext);
 
-                                        var contentType = MimeTypeMap.List.MimeTypeMap
-                                            .GetMimeType(Path.GetExtension(attachmentPath))
-                                            .FirstOrDefault();
+                                        var extension = Path.GetExtension(attachmentPath);
 
-                                        if (contentType.StartsWith("image/"))
+                                        if (!string.IsNullOrEmpty(extension))
                                         {
-                                            messageBody += $"<br><img src=\"{fileUrl}\">";
+                                            var contentType = MimeTypeMap.List.MimeTypeMap
+                                                .GetMimeType(extension)
+                                                .FirstOrDefault();
+
+                                            if (contentType.StartsWith("image/"))
+                                            {
+                                                messageBody += $"<br><img src=\"{fileUrl}\">";
+                                            }
+                                            else
+                                            {
+                                                messageBody += $"<br><a href=\"{fileUrl}\">Attachment</a>";
+                                            } 
                                         }
                                         else
                                         {
