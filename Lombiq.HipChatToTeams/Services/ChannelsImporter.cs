@@ -26,7 +26,7 @@ namespace Lombiq.HipChatToTeams.Services
         private static readonly string _unsupportedChannelNameCharactersString = string.Join(", ", _unsupportedChannelNameCharacters);
 
 
-        public static async Task ImportChannelsFromRoomsAsync(ImportContext importContext)
+        public static async Task ImportChannelsFromRoomsAsync(ImportContext importContext, bool checkTeams = true)
         {
             var configuration = importContext.Configuration;
             var graphApi = importContext.GraphApi;
@@ -46,59 +46,62 @@ namespace Lombiq.HipChatToTeams.Services
 
             var teams = (await graphApi.GetMyTeamsAsync()).Items.ToDictionary(team => team.DisplayName);
 
-            // Creating teams in advance so there's less waiting on the provisioning of the corresponding SharePoint
-            // sites.
-            Console.WriteLine("======================");
-            TimestampedConsole.WriteLine("Creating teams that don't exist.");
-
-            var teamNamesToUse = configuration.HipChatRoomsToTeams.Values;
-
-            foreach (var teamName in teamNamesToUse.Distinct())
+            if (checkTeams)
             {
-                if (!teams.ContainsKey(teamName))
+                // Creating teams in advance so there's less waiting on the provisioning of the corresponding SharePoint
+                // sites.
+                Console.WriteLine("======================");
+                TimestampedConsole.WriteLine("Creating teams that don't exist.");
+
+                var teamNamesToUse = configuration.HipChatRoomsToTeams.Values;
+
+                foreach (var teamName in teamNamesToUse.Distinct())
                 {
-                    TimestampedConsole.WriteLine($"The team \"{teamName}\" doesn't exist, so attempting to create it.");
-
-                    using (var response = await graphApi.CreateTeamAsync(new Team { DisplayName = teamName }))
+                    if (!teams.ContainsKey(teamName))
                     {
-                        if (!response.Headers.TryGetValues("Location", out var locations) || locations.Count() != 1)
-                        {
-                            throw new Exception($"Attempted to create the \"{teamName}\" team but the operation didn't return correctly. Try to create the team manually.");
-                        }
+                        TimestampedConsole.WriteLine($"The team \"{teamName}\" doesn't exist, so attempting to create it.");
 
-                        var location = locations.Single();
-                        var operation = await graphApi.GetAsyncOperation(location);
-
-                        var tries = 0;
-                        while (operation.Status != "succeeded")
+                        using (var response = await graphApi.CreateTeamAsync(new Team { DisplayName = teamName }))
                         {
-                            if (tries > 10)
+                            if (!response.Headers.TryGetValues("Location", out var locations) || locations.Count() != 1)
                             {
-                                throw new Exception($"Attempted to create the \"{teamName}\" team but the operation didn't succeed after plenty of time. Try to create the team manually.");
+                                throw new Exception($"Attempted to create the \"{teamName}\" team but the operation didn't return correctly. Try to create the team manually.");
                             }
 
-                            // https://docs.microsoft.com/en-us/graph/api/resources/teamsasyncoperation?view=graph-rest-beta
-                            // says to wait >30s.
-                            await Task.Delay(31000);
+                            var location = locations.Single();
+                            var operation = await graphApi.GetAsyncOperation(location);
 
-                            operation = await graphApi.GetAsyncOperation(location);
+                            var tries = 0;
+                            while (operation.Status != "succeeded")
+                            {
+                                if (tries > 10)
+                                {
+                                    throw new Exception($"Attempted to create the \"{teamName}\" team but the operation didn't succeed after plenty of time. Try to create the team manually.");
+                                }
 
-                            tries++;
+                                // https://docs.microsoft.com/en-us/graph/api/resources/teamsasyncoperation?view=graph-rest-beta
+                                // says to wait >30s.
+                                await Task.Delay(31000);
+
+                                operation = await graphApi.GetAsyncOperation(location);
+
+                                tries++;
+                            }
+
+                            teams[teamName] = new Team
+                            {
+                                Id = operation.TargetResourceId,
+                                DisplayName = teamName
+                            };
                         }
 
-                        teams[teamName] = new Team
-                        {
-                            Id = operation.TargetResourceId,
-                            DisplayName = teamName
-                        };
+                        TimestampedConsole.WriteLine($"Created the \"{teamName}\" team.");
                     }
-
-                    TimestampedConsole.WriteLine($"Created the \"{teamName}\" team.");
                 }
-            }
 
-            TimestampedConsole.WriteLine("Created all new teams.");
-            Console.WriteLine("======================");
+                TimestampedConsole.WriteLine("Created all new teams.");
+                Console.WriteLine("======================"); 
+            }
 
             foreach (var room in rooms)
             {
@@ -240,13 +243,22 @@ namespace Lombiq.HipChatToTeams.Services
                                     {
                                         var fileUrl = await AttachmentUploader.UploadFile(attachmentPath, teamToImportInto, channel, importContext);
 
-                                        var contentType = MimeTypeMap.List.MimeTypeMap
-                                            .GetMimeType(Path.GetExtension(attachmentPath))
-                                            .FirstOrDefault();
+                                        var extension = Path.GetExtension(attachmentPath);
 
-                                        if (contentType.StartsWith("image/"))
+                                        if (!string.IsNullOrEmpty(extension))
                                         {
-                                            messageBody += $"<br><img src=\"{fileUrl}\">";
+                                            var contentType = MimeTypeMap.List.MimeTypeMap
+                                                .GetMimeType(extension)
+                                                .FirstOrDefault();
+
+                                            if (contentType.StartsWith("image/"))
+                                            {
+                                                messageBody += $"<br><img src=\"{fileUrl}\">";
+                                            }
+                                            else
+                                            {
+                                                messageBody += $"<br><a href=\"{fileUrl}\">Attachment</a>";
+                                            } 
                                         }
                                         else
                                         {
@@ -361,7 +373,7 @@ namespace Lombiq.HipChatToTeams.Services
                         {
                             importContext.ShortenNextMessage = true;
 
-                            await ImportChannelsFromRoomsAsync(importContext);
+                            await ImportChannelsFromRoomsAsync(importContext, false);
                             return;
                         }
                         else
@@ -372,7 +384,7 @@ namespace Lombiq.HipChatToTeams.Services
 
                     TimestampedConsole.WriteLine($"Importing {configuration.NumberOfHipChatMessagesToImportIntoTeamsMessage} HipChat messages into a Teams message resulted in a message too large. Retrying with just {importContext.MessageBatchSizeOverride} messages.");
 
-                    await ImportChannelsFromRoomsAsync(importContext);
+                    await ImportChannelsFromRoomsAsync(importContext, false);
                     return;
                 }
                 catch (ApiException ex) when (ex.StatusCode == HttpStatusCode.Unauthorized)
