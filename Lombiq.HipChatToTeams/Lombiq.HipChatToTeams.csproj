@@ -7,7 +7,7 @@
     <PackageProjectUrl>https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility</PackageProjectUrl>
     <Product>Lombiq HipChat to Microsoft Teams Migration Utility</Product>
     <PackageLicenseUrl>https://github.com/Lombiq/HipChat-to-Microsoft-Teams-Migration-Utility/blob/dev/Licence.md</PackageLicenseUrl>
-    <Version>0.4.0-beta</Version>
+    <Version>0.4.1-beta</Version>
   </PropertyGroup>
 
   <ItemGroup>
